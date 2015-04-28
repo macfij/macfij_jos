@@ -4,7 +4,8 @@
 #include <inc/lib.h>
 
 static inline int32_t
-syscall(int num, int check, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, uint32_t a5)
+syscall(int num, int check, uint32_t a1, uint32_t a2,
+        uint32_t a3, uint32_t a4, uint32_t a5)
 {
 	int32_t ret;
 
