@@ -91,6 +91,7 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	e = &envs[ENVX(envid)];
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
 		*env_store = 0;
+		cprintf("env id vs envid: %x %x\n", e->env_id, envid);
 		return -E_BAD_ENV;
 	}
 
@@ -108,12 +109,25 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	return 0;
 }
 
+// debug function used to verifying whether env_free_list is
+// set up properly
+void iterate_through_env_free(void)
+{
+	struct Env *c = env_free_list;
+	while(c) {
+		cprintf("c id %d\n", ENVX(c->env_id));
+		c = c->env_link;
+	}
+	cprintf("NENV %d\n", NENV);
+}
+
 // Mark all environments in 'envs' as free, set their env_ids to 0,
 // and insert them into the env_free_list.
 // Make sure the environments are in the free list in the same order
 // they are in the envs array (i.e., so that the first call to
 // env_alloc() returns envs[0]).
 //
+
 void
 env_init(void)
 {
@@ -122,12 +136,12 @@ env_init(void)
 	size_t n;
 	struct Env *curr;
 
-	for(n = 0, curr = &envs[0]; n < NENV; ++n, curr = &envs[n]) {
+	for(n = 0, curr = &envs[0]; n < NENV - 1; ++n) {
 		memset(curr, 0, sizeof(struct Env));
-		env_free_list = curr;
-		env_free_list->env_link = NULL;
-		env_free_list = env_free_list->env_link;
+		curr->env_link = &envs[n + 1];
+		curr = curr->env_link;
 	}
+	envs[NENV - 1].env_link = NULL;
 	env_free_list = &envs[0];
 
 	// Per-CPU part of the initialization
@@ -263,6 +277,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Enable interrupts while in user mode.
 	// LAB 4: Your code here.
+	e->env_tf.tf_eflags |= FL_IF;
 
 	// Clear the page fault handler until user installs one.
 	e->env_pgfault_upcall = 0;
@@ -573,6 +588,7 @@ env_run(struct Env *e)
 	// Step 2: Use env_pop_tf() to restore the environment's
 	//	   registers and drop into user mode in the
 	//	   environment.
+	unlock_kernel();
 	env_pop_tf(&curenv->env_tf);
 
 	// Hint: This function loads the new environment's state from

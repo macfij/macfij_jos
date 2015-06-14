@@ -87,7 +87,7 @@ static void check_page_installed_pgdir(void);
 static void *
 boot_alloc(uint32_t n)
 {
-	cprintf("BOOT_ALLOC: called with %u needed bytes\n", n);
+	/* cprintf("BOOT_ALLOC: called with %u needed bytes\n", n); */
 	static char *nextfree;	// virtual address of next byte of free memory
 	char *result;
 	uint32_t pages_needed = 1;
@@ -104,8 +104,8 @@ boot_alloc(uint32_t n)
 	}
 
 	if (n == 0) {
-		cprintf("BOOT_ALLOC: Returning address of next free page: %p"
-			"\n", nextfree);
+		/* cprintf("BOOT_ALLOC: Returning address of next free page: %p" */
+		/* 	"\n", nextfree); */
 		return (void *)nextfree;
 	}
 
@@ -128,9 +128,9 @@ boot_alloc(uint32_t n)
 	// LAB 2: Your code here.
 	nextfree = ROUNDUP((char *)(result + n), PGSIZE);
 
-	cprintf("BOOT_ALLOC: bytes needed: %u, pages needed: %u, pages left"
-		" after operation: %u, address returned: %p, address of next"
-		" free page: %p\n", n, pages_needed, pages_left, result, nextfree);
+	/* cprintf("BOOT_ALLOC: bytes needed: %u, pages needed: %u, pages left" */
+	/* 	" after operation: %u, address returned: %p, address of next" */
+	/* 	" free page: %p\n", n, pages_needed, pages_left, result, nextfree); */
 
 	return result;
 }
@@ -303,7 +303,13 @@ mem_init_mp(void)
 	//     Permissions: kernel RW, user NONE
 	//
 	// LAB 4: Your code here:
-
+	int i;
+	uintptr_t kstacktop_i;
+	for (i = 0; i < NCPU; i++) {
+		kstacktop_i = KSTACKTOP - i * (KSTKSIZE + KSTKGAP);
+		boot_map_region(kern_pgdir, kstacktop_i - KSTKSIZE,
+		                KSTKSIZE, PADDR(percpu_kstacks[i]), PTE_W);
+	}
 }
 
 // --------------------------------------------------------------
@@ -352,6 +358,10 @@ page_init(void)
 
 	// rest of base mem: free
 	for (i = 2; i < npages_basemem; i++) {
+		// i == 7 -> 0x7000 (addr of MPENTRY_ADDR);
+		if (i == 7) {
+			continue;
+		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -620,6 +630,11 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// value will be preserved between calls to mmio_map_region
 	// (just like nextfree in boot_alloc).
 	static uintptr_t base = MMIOBASE;
+	uintptr_t return_addr;
+	size_t rounded_size = ROUNDUP(size, PGSIZE);
+	if (base + rounded_size >= MMIOLIM) {
+		panic("mmio_map_region: no space left\n");
+	}
 
 	// Reserve size bytes of virtual memory starting at base and
 	// map physical pages [pa,pa+size) to virtual addresses
@@ -639,7 +654,11 @@ mmio_map_region(physaddr_t pa, size_t size)
 	// Hint: The staff solution uses boot_map_region.
 	//
 	// Your code here:
-	panic("mmio_map_region not implemented");
+	boot_map_region(kern_pgdir, base, rounded_size,
+	                pa, PTE_W | PTE_PCD | PTE_PWT);
+	return_addr = base;
+	base += rounded_size;
+	return (void *)return_addr;
 }
 
 static uintptr_t user_mem_check_addr;
@@ -662,6 +681,7 @@ static uintptr_t user_mem_check_addr;
 // Returns 0 if the user program can access this range of addresses,
 // and -E_FAULT otherwise.
 //
+// TODO: this needs to be refactored/fixed in order to pass faultnostack
 int
 user_mem_check(struct Env *env, const void *va, size_t len, int perm)
 {
@@ -769,7 +789,7 @@ check_page_free_list(bool only_low_memory)
 
 	assert(nfree_basemem > 0);
 	assert(nfree_extmem > 0);
-	cprintf("CHECK_PAGE_LIST:succeed!\n");
+	cprintf("CHECK_PAGE_FREE_LIST:succeed!\n");
 }
 
 //
@@ -1102,6 +1122,7 @@ check_page(void)
 	// check page mappings
 	assert(check_va2pa(kern_pgdir, mm1) == 0);
 	assert(check_va2pa(kern_pgdir, mm1+PGSIZE) == PGSIZE);
+
 	assert(check_va2pa(kern_pgdir, mm2) == 0);
 	assert(check_va2pa(kern_pgdir, mm2+PGSIZE) == ~0);
 	// check permissions

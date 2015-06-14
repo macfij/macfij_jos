@@ -47,26 +47,32 @@
 /*
  * Lab 3: Your code here for generating entry points for the different traps.
  */
-TRAPHANDLER_NOEC(idt_divzero, T_DIVIDE);
-TRAPHANDLER_NOEC(idt_debug, T_DEBUG);
-TRAPHANDLER_NOEC(idt_nmi, T_NMI);
-TRAPHANDLER_NOEC(idt_break, T_BRKPT);
-TRAPHANDLER_NOEC(idt_overflow, T_OFLOW);
-TRAPHANDLER_NOEC(idt_bound, T_BOUND);
-TRAPHANDLER_NOEC(idt_illop, T_ILLOP);
-TRAPHANDLER_NOEC(idt_device, T_DEVICE);
-TRAPHANDLER(idt_doublefault, T_DBLFLT);
-TRAPHANDLER(idt_tss, T_TSS);
-TRAPHANDLER(idt_segnp, T_SEGNP);
-TRAPHANDLER(idt_stack, T_STACK);
-TRAPHANDLER(idt_gpf, T_GPFLT);
-TRAPHANDLER(idt_pagefault, T_PGFLT);
-TRAPHANDLER_NOEC(idt_floatingpoint, T_FPERR);
-TRAPHANDLER(idt_align, T_ALIGN);
-TRAPHANDLER_NOEC(idt_machinechk, T_MCHK);
-TRAPHANDLER_NOEC(idt_simd, T_SIMDERR);
-TRAPHANDLER_NOEC(idt_syscall, T_SYSCALL);
+TRAPHANDLER_NOEC(idt_divzero, T_DIVIDE)
+TRAPHANDLER_NOEC(idt_debug, T_DEBUG)
+TRAPHANDLER_NOEC(idt_nmi, T_NMI)
+TRAPHANDLER_NOEC(idt_break, T_BRKPT)
+TRAPHANDLER_NOEC(idt_overflow, T_OFLOW)
+TRAPHANDLER_NOEC(idt_bound, T_BOUND)
+TRAPHANDLER_NOEC(idt_illop, T_ILLOP)
+TRAPHANDLER_NOEC(idt_device, T_DEVICE)
+TRAPHANDLER(idt_doublefault, T_DBLFLT)
+TRAPHANDLER(idt_tss, T_TSS)
+TRAPHANDLER(idt_segnp, T_SEGNP)
+TRAPHANDLER(idt_stack, T_STACK)
+TRAPHANDLER(idt_gpf, T_GPFLT)
+TRAPHANDLER(idt_pagefault, T_PGFLT)
+TRAPHANDLER_NOEC(idt_floatingpoint, T_FPERR)
+TRAPHANDLER(idt_align, T_ALIGN)
+TRAPHANDLER_NOEC(idt_machinechk, T_MCHK)
+TRAPHANDLER_NOEC(idt_simd, T_SIMDERR)
+TRAPHANDLER_NOEC(idt_syscall, T_SYSCALL)
 
+TRAPHANDLER_NOEC(irq_timer, IRQ_OFFSET + IRQ_TIMER)
+TRAPHANDLER_NOEC(irq_kbd, IRQ_OFFSET + IRQ_KBD)
+TRAPHANDLER_NOEC(irq_serial, IRQ_OFFSET + IRQ_SERIAL)
+TRAPHANDLER_NOEC(irq_spurious, IRQ_OFFSET + IRQ_SPURIOUS)
+TRAPHANDLER_NOEC(irq_ide, IRQ_OFFSET + IRQ_IDE)
+TRAPHANDLER_NOEC(irq_error, IRQ_OFFSET + IRQ_ERROR)
 
 /*
  * Lab 3: Your code here for _alltraps
@@ -101,4 +107,3 @@ _alltraps:
 	movw %ax, %es;
 	pushl %esp;
 	call trap;
-	addl $4, %esp;
