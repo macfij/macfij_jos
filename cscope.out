@@ -1,0 +1,19989 @@
+cscope 15 $HOME/workdir/asm/mit/lab -c -q 0000000828 0000116070
+	@boot/main.c
+
+1 #include 
+	~<inc/x86.h
+>
+
+2 #include 
+	~<inc/elf.h
+>
+
+32 #define 
+	#SECTSIZE
+ 512
+
+	)
+
+33 #define 
+	#ELFHDR
+ ((struct 
+Elf
+ *) 0x10000)
+
+34 
+
+	)
+
+35 void 
+readsect
+(void*, 
+uint32_t
+);
+
+36 void 
+readseg
+(
+uint32_t
+, uint32_t, uint32_t);
+
+39 
+	$bootmain
+(void)
+
+41 struct 
+Proghdr
+ *
+ph
+, *
+eph
+;
+
+44 
+	`readseg
+((
+uint32_t
+) 
+ELFHDR
+, 
+SECTSIZE
+*8, 0);
+
+47 if (
+ELFHDR
+->
+e_magic
+ != 
+ELF_MAGIC
+)
+
+48 goto 
+bad
+;
+
+51 
+ph
+ = (struct 
+Proghdr
+ *) ((
+uint8_t
+ *) 
+ELFHDR
+ + ELFHDR->
+e_phoff
+);
+
+52 
+eph
+ = 
+ph
+ + 
+ELFHDR
+->
+e_phnum
+;
+
+53 for (; 
+ph
+ < 
+eph
+; ph++)
+
+56 
+	`readseg
+(
+ph
+->
+p_pa
+, ph->
+p_memsz
+, ph->
+p_offset
+);
+
+60 ((void (*)(void)) (
+ELFHDR
+->
+e_entry
+))();
+
+62 
+bad
+:
+
+63 
+	`outw
+(0x8A00, 0x8A00);
+
+64 
+	`outw
+(0x8A00, 0x8E00);
+
+67 
+	}
+}
+
+72 
+	$readseg
+(
+uint32_t
+ 
+pa
+, uint32_t 
+count
+, uint32_t 
+offset
+)
+
+74 
+uint32_t
+ 
+end_pa
+;
+
+76 
+end_pa
+ = 
+pa
+ + 
+count
+;
+
+79 
+pa
+ &= ~(
+SECTSIZE
+ - 1);
+
+82 
+offset
+ = (offset / 
+SECTSIZE
+) + 1;
+
+87 while (
+pa
+ < 
+end_pa
+) {
+
+92 
+	`readsect
+((
+uint8_t
+*) 
+pa
+, 
+offset
+);
+
+93 
+pa
+ += 
+SECTSIZE
+;
+
+94 
+offset
+++;
+
+96 
+	}
+}
+
+99 
+	$waitdisk
+(void)
+
+102 while ((
+	`inb
+(0x1F7) & 0xC0) != 0x40)
+
+104 
+	}
+}
+
+107 
+	$readsect
+(void *
+dst
+, 
+uint32_t
+ 
+offset
+)
+
+110 
+	`waitdisk
+();
+
+112 
+	`outb
+(0x1F2, 1);
+
+113 
+	`outb
+(0x1F3, 
+offset
+);
+
+114 
+	`outb
+(0x1F4, 
+offset
+ >> 8);
+
+115 
+	`outb
+(0x1F5, 
+offset
+ >> 16);
+
+116 
+	`outb
+(0x1F6, (
+offset
+ >> 24) | 0xE0);
+
+117 
+	`outb
+(0x1F7, 0x20);
+
+120 
+	`waitdisk
+();
+
+123 
+	`insl
+(0x1F0, 
+dst
+, 
+SECTSIZE
+/4);
+
+124 
+	}
+}
+
+	@inc/assert.h
+
+3 #ifndef 
+JOS_INC_ASSERT_H
+
+
+4 #define 
+	#JOS_INC_ASSERT_H
+
+
+	)
+
+6 #include 
+	~<inc/stdio.h
+>
+
+8 void 
+_warn
+(const char*, int, const char*, ...);
+
+9 void 
+	$_panic
+(const char*, int, const char*, ...) 
+	`__attribute__
+((
+noreturn
+));
+
+11 #define 
+	#warn
+(...) 
+	`_warn
+(
+__FILE__
+, 
+__LINE__
+, 
+__VA_ARGS__
+)
+
+	)
+
+12 #define 
+	#panic
+(...) 
+	`_panic
+(
+__FILE__
+, 
+__LINE__
+, 
+__VA_ARGS__
+)
+
+	)
+
+14 #define 
+	#assert
+(
+x
+) \
+
+15 do { if (!(
+x
+)) 
+	`panic
+("assertion failed: %s", #x); 
+	}
+} while (0)
+
+	)
+
+18 #define 
+	#static_assert
+(
+x
+) switch (x) case 0: case (x):
+
+	)
+
+	@inc/elf.h
+
+1 #ifndef 
+JOS_INC_ELF_H
+
+
+2 #define 
+	#JOS_INC_ELF_H
+
+
+	)
+
+4 #define 
+	#ELF_MAGIC
+ 0x464C457FU
+
+	)
+
+6 struct 
+	sElf
+ {
+
+7 
+uint32_t
+ 
+	me_magic
+;
+
+8 
+uint8_t
+ 
+	me_elf
+[12];
+
+9 
+uint16_t
+ 
+	me_type
+;
+
+10 
+uint16_t
+ 
+	me_machine
+;
+
+11 
+uint32_t
+ 
+	me_version
+;
+
+12 
+uint32_t
+ 
+	me_entry
+;
+
+13 
+uint32_t
+ 
+	me_phoff
+;
+
+14 
+uint32_t
+ 
+	me_shoff
+;
+
+15 
+uint32_t
+ 
+	me_flags
+;
+
+16 
+uint16_t
+ 
+	me_ehsize
+;
+
+17 
+uint16_t
+ 
+	me_phentsize
+;
+
+18 
+uint16_t
+ 
+	me_phnum
+;
+
+19 
+uint16_t
+ 
+	me_shentsize
+;
+
+20 
+uint16_t
+ 
+	me_shnum
+;
+
+21 
+uint16_t
+ 
+	me_shstrndx
+;
+
+24 struct 
+	sProghdr
+ {
+
+25 
+uint32_t
+ 
+	mp_type
+;
+
+26 
+uint32_t
+ 
+	mp_offset
+;
+
+27 
+uint32_t
+ 
+	mp_va
+;
+
+28 
+uint32_t
+ 
+	mp_pa
+;
+
+29 
+uint32_t
+ 
+	mp_filesz
+;
+
+30 
+uint32_t
+ 
+	mp_memsz
+;
+
+31 
+uint32_t
+ 
+	mp_flags
+;
+
+32 
+uint32_t
+ 
+	mp_align
+;
+
+35 struct 
+	sSecthdr
+ {
+
+36 
+uint32_t
+ 
+	msh_name
+;
+
+37 
+uint32_t
+ 
+	msh_type
+;
+
+38 
+uint32_t
+ 
+	msh_flags
+;
+
+39 
+uint32_t
+ 
+	msh_addr
+;
+
+40 
+uint32_t
+ 
+	msh_offset
+;
+
+41 
+uint32_t
+ 
+	msh_size
+;
+
+42 
+uint32_t
+ 
+	msh_link
+;
+
+43 
+uint32_t
+ 
+	msh_info
+;
+
+44 
+uint32_t
+ 
+	msh_addralign
+;
+
+45 
+uint32_t
+ 
+	msh_entsize
+;
+
+49 #define 
+	#ELF_PROG_LOAD
+ 1
+
+	)
+
+52 #define 
+	#ELF_PROG_FLAG_EXEC
+ 1
+
+	)
+
+53 #define 
+	#ELF_PROG_FLAG_WRITE
+ 2
+
+	)
+
+54 #define 
+	#ELF_PROG_FLAG_READ
+ 4
+
+	)
+
+57 #define 
+	#ELF_SHT_NULL
+ 0
+
+	)
+
+58 #define 
+	#ELF_SHT_PROGBITS
+ 1
+
+	)
+
+59 #define 
+	#ELF_SHT_SYMTAB
+ 2
+
+	)
+
+60 #define 
+	#ELF_SHT_STRTAB
+ 3
+
+	)
+
+63 #define 
+	#ELF_SHN_UNDEF
+ 0
+
+	)
+
+	@inc/error.h
+
+3 #ifndef 
+JOS_INC_ERROR_H
+
+
+4 #define 
+	#JOS_INC_ERROR_H
+
+
+	)
+
+8 
+	mE_UNSPECIFIED
+ = 1,
+
+9 
+	mE_BAD_ENV
+ = 2,
+
+11 
+	mE_INVAL
+ = 3,
+
+12 
+	mE_NO_MEM
+ = 4,
+
+13 
+	mE_NO_FREE_ENV
+ = 5,
+
+15 
+	mE_FAULT
+ = 6,
+
+16 
+	mE_NO_SYS
+ = 7,
+
+18 
+	mMAXERROR
+
+
+	@inc/kbdreg.h
+
+1 #ifndef 
+JOS_KBDREG_H
+
+
+2 #define 
+	#JOS_KBDREG_H
+
+
+	)
+
+5 #define 
+	#KEY_HOME
+ 0xE0
+
+	)
+
+6 #define 
+	#KEY_END
+ 0xE1
+
+	)
+
+7 #define 
+	#KEY_UP
+ 0xE2
+
+	)
+
+8 #define 
+	#KEY_DN
+ 0xE3
+
+	)
+
+9 #define 
+	#KEY_LF
+ 0xE4
+
+	)
+
+10 #define 
+	#KEY_RT
+ 0xE5
+
+	)
+
+11 #define 
+	#KEY_PGUP
+ 0xE6
+
+	)
+
+12 #define 
+	#KEY_PGDN
+ 0xE7
+
+	)
+
+13 #define 
+	#KEY_INS
+ 0xE8
+
+	)
+
+14 #define 
+	#KEY_DEL
+ 0xE9
+
+	)
+
+19 #define 
+	#KBSTATP
+ 0x64
+
+	)
+
+20 #define 
+	#KBS_DIB
+ 0x01
+
+	)
+
+21 #define 
+	#KBS_IBF
+ 0x02
+
+	)
+
+22 #define 
+	#KBS_WARM
+ 0x04
+
+	)
+
+23 #define 
+	#KBS_OCMD
+ 0x08
+
+	)
+
+24 #define 
+	#KBS_NOSEC
+ 0x10
+
+	)
+
+25 #define 
+	#KBS_TERR
+ 0x20
+
+	)
+
+26 #define 
+	#KBS_RERR
+ 0x40
+
+	)
+
+27 #define 
+	#KBS_PERR
+ 0x80
+
+	)
+
+29 #define 
+	#KBCMDP
+ 0x64
+
+	)
+
+30 #define 
+	#KBC_RAMREAD
+ 0x20
+
+	)
+
+31 #define 
+	#KBC_RAMWRITE
+ 0x60
+
+	)
+
+32 #define 
+	#KBC_AUXDISABLE
+ 0xa7
+
+	)
+
+33 #define 
+	#KBC_AUXENABLE
+ 0xa8
+
+	)
+
+34 #define 
+	#KBC_AUXTEST
+ 0xa9
+
+	)
+
+35 #define 
+	#KBC_KBDECHO
+ 0xd2
+
+	)
+
+36 #define 
+	#KBC_AUXECHO
+ 0xd3
+
+	)
+
+37 #define 
+	#KBC_AUXWRITE
+ 0xd4
+
+	)
+
+38 #define 
+	#KBC_SELFTEST
+ 0xaa
+
+	)
+
+39 #define 
+	#KBC_KBDTEST
+ 0xab
+
+	)
+
+40 #define 
+	#KBC_KBDDISABLE
+ 0xad
+
+	)
+
+41 #define 
+	#KBC_KBDENABLE
+ 0xae
+
+	)
+
+42 #define 
+	#KBC_PULSE0
+ 0xfe
+
+	)
+
+43 #define 
+	#KBC_PULSE1
+ 0xfd
+
+	)
+
+44 #define 
+	#KBC_PULSE2
+ 0xfb
+
+	)
+
+45 #define 
+	#KBC_PULSE3
+ 0xf7
+
+	)
+
+47 #define 
+	#KBDATAP
+ 0x60
+
+	)
+
+48 #define 
+	#KBOUTP
+ 0x60
+
+	)
+
+50 #define 
+	#K_RDCMDBYTE
+ 0x20
+
+	)
+
+51 #define 
+	#K_LDCMDBYTE
+ 0x60
+
+	)
+
+53 #define 
+	#KC8_TRANS
+ 0x40
+
+	)
+
+54 #define 
+	#KC8_MDISABLE
+ 0x20
+
+	)
+
+55 #define 
+	#KC8_KDISABLE
+ 0x10
+
+	)
+
+56 #define 
+	#KC8_IGNSEC
+ 0x08
+
+	)
+
+57 #define 
+	#KC8_CPU
+ 0x04
+
+	)
+
+58 #define 
+	#KC8_MENABLE
+ 0x02
+
+	)
+
+59 #define 
+	#KC8_KENABLE
+ 0x01
+
+	)
+
+60 #define 
+	#CMDBYTE
+ (
+KC8_TRANS
+|
+KC8_CPU
+|
+KC8_MENABLE
+|
+KC8_KENABLE
+)
+
+	)
+
+63 #define 
+	#KBC_RESET
+ 0xFF
+
+	)
+
+64 #define 
+	#KBC_RESEND
+ 0xFE
+
+	)
+
+65 #define 
+	#KBC_SETDEFAULT
+ 0xF6
+
+	)
+
+66 #define 
+	#KBC_DISABLE
+ 0xF5
+
+	)
+
+67 #define 
+	#KBC_ENABLE
+ 0xF4
+
+	)
+
+68 #define 
+	#KBC_TYPEMATIC
+ 0xF3
+
+	)
+
+69 #define 
+	#KBC_SETTABLE
+ 0xF0
+
+	)
+
+70 #define 
+	#KBC_MODEIND
+ 0xED
+
+	)
+
+71 #define 
+	#KBC_ECHO
+ 0xEE
+
+	)
+
+74 #define 
+	#KBR_EXTENDED
+ 0xE0
+
+	)
+
+75 #define 
+	#KBR_RESEND
+ 0xFE
+
+	)
+
+76 #define 
+	#KBR_ACK
+ 0xFA
+
+	)
+
+77 #define 
+	#KBR_OVERRUN
+ 0x00
+
+	)
+
+78 #define 
+	#KBR_FAILURE
+ 0xFD
+
+	)
+
+79 #define 
+	#KBR_BREAK
+ 0xF0
+
+	)
+
+80 #define 
+	#KBR_RSTDONE
+ 0xAA
+
+	)
+
+81 #define 
+	#KBR_ECHO
+ 0xEE
+
+	)
+
+	@inc/memlayout.h
+
+1 #ifndef 
+JOS_INC_MEMLAYOUT_H
+
+
+2 #define 
+	#JOS_INC_MEMLAYOUT_H
+
+
+	)
+
+4 #ifndef 
+__ASSEMBLER__
+
+
+5 #include 
+	~<inc/types.h
+>
+
+6 #include 
+	~<inc/mmu.h
+>
+
+15 #define 
+	#GD_KT
+ 0x08
+
+16 #define 
+	#GD_KD
+ 0x10
+
+17 #define 
+	#GD_UT
+ 0x18
+
+18 #define 
+	#GD_UD
+ 0x20
+
+19 #define 
+	#GD_TSS0
+ 0x28
+
+20 
+
+	)
+
+87 #define 
+	#KERNBASE
+ 0xF0000000
+
+	)
+
+92 #define 
+	#IOPHYSMEM
+ 0x0A0000
+
+	)
+
+93 #define 
+	#EXTPHYSMEM
+ 0x100000
+
+	)
+
+96 #define 
+	#KSTACKTOP
+ 
+KERNBASE
+
+
+	)
+
+97 #define 
+	#KSTKSIZE
+ (8*
+PGSIZE
+)
+
+98 #define 
+	#KSTKGAP
+ (8*
+PGSIZE
+)
+
+99 
+
+	)
+
+101 #define 
+	#MMIOLIM
+ (
+KSTACKTOP
+ - 
+PTSIZE
+)
+
+	)
+
+102 #define 
+	#MMIOBASE
+ (
+MMIOLIM
+ - 
+PTSIZE
+)
+
+	)
+
+104 #define 
+	#ULIM
+ (
+MMIOBASE
+)
+
+	)
+
+112 #define 
+	#UVPT
+ (
+ULIM
+ - 
+PTSIZE
+)
+
+	)
+
+114 #define 
+	#UPAGES
+ (
+UVPT
+ - 
+PTSIZE
+)
+
+	)
+
+116 #define 
+	#UENVS
+ (
+UPAGES
+ - 
+PTSIZE
+)
+
+	)
+
+123 #define 
+	#UTOP
+ 
+UENVS
+
+
+	)
+
+125 #define 
+	#UXSTACKTOP
+ 
+UTOP
+
+
+	)
+
+128 #define 
+	#USTACKTOP
+ (
+UTOP
+ - 2*
+PGSIZE
+)
+
+	)
+
+131 #define 
+	#UTEXT
+ (2*
+PTSIZE
+)
+
+	)
+
+134 #define 
+	#UTEMP
+ ((void*) 
+PTSIZE
+)
+
+	)
+
+137 #define 
+	#PFTEMP
+ (
+UTEMP
+ + 
+PTSIZE
+ - 
+PGSIZE
+)
+
+	)
+
+139 #define 
+	#USTABDATA
+ (
+PTSIZE
+ / 2)
+
+	)
+
+141 #ifndef 
+__ASSEMBLER__
+
+
+143 typedef 
+uint32_t
+ 
+	tpte_t
+;
+
+144 typedef 
+uint32_t
+ 
+	tpde_t
+;
+
+146 #if 
+JOS_USER
+
+
+161 extern volatile 
+pte_t
+ 
+uvpt
+[];
+
+162 extern volatile 
+pde_t
+ 
+uvpd
+[];
+
+175 struct 
+	sPageInfo
+ {
+
+177 struct 
+PageInfo
+ *
+	mpp_link
+;
+
+184 
+uint16_t
+ 
+	mpp_ref
+;
+
+	@inc/mmu.h
+
+1 #ifndef 
+JOS_INC_MMU_H
+
+
+2 #define 
+	#JOS_INC_MMU_H
+
+
+	)
+
+30 #define 
+	#PGNUM
+(
+la
+) (((
+uintptr_t
+) (la)) >> 
+PTXSHIFT
+)
+
+	)
+
+33 #define 
+	#PDX
+(
+la
+) ((((
+uintptr_t
+) (la)) >> 
+PDXSHIFT
+) & 0x3FF)
+
+	)
+
+36 #define 
+	#PTX
+(
+la
+) ((((
+uintptr_t
+) (la)) >> 
+PTXSHIFT
+) & 0x3FF)
+
+	)
+
+39 #define 
+	#PGOFF
+(
+la
+) (((
+uintptr_t
+) (la)) & 0xFFF)
+
+	)
+
+42 #define 
+	#PGADDR
+(
+d
+, 
+t
+, 
+o
+) ((void*) ((d) << 
+PDXSHIFT
+ | (t) << 
+PTXSHIFT
+ | (o)))
+
+	)
+
+45 #define 
+	#NPDENTRIES
+ 1024
+
+46 #define 
+	#NPTENTRIES
+ 1024
+
+47 
+
+	)
+
+48 #define 
+	#PGSIZE
+ 4096
+
+49 #define 
+	#PGSHIFT
+ 12
+
+50 
+
+	)
+
+51 #define 
+	#PTSIZE
+ (
+PGSIZE
+*
+NPTENTRIES
+)
+
+52 #define 
+	#PTSHIFT
+ 22
+
+53 
+
+	)
+
+54 #define 
+	#PTXSHIFT
+ 12
+
+55 #define 
+	#PDXSHIFT
+ 22
+
+56 
+
+	)
+
+58 #define 
+	#PTE_P
+ 0x001
+
+59 #define 
+	#PTE_W
+ 0x002
+
+60 #define 
+	#PTE_U
+ 0x004
+
+61 #define 
+	#PTE_PWT
+ 0x008
+
+62 #define 
+	#PTE_PCD
+ 0x010
+
+63 #define 
+	#PTE_A
+ 0x020
+
+64 #define 
+	#PTE_D
+ 0x040
+
+65 #define 
+	#PTE_PS
+ 0x080
+
+66 #define 
+	#PTE_G
+ 0x100
+
+67 
+
+	)
+
+70 #define 
+	#PTE_AVAIL
+ 0xE00
+
+71 
+
+	)
+
+73 #define 
+	#PTE_SYSCALL
+ (
+PTE_AVAIL
+ | 
+PTE_P
+ | 
+PTE_W
+ | 
+PTE_U
+)
+
+	)
+
+76 #define 
+	#PTE_ADDR
+(
+pte
+) ((
+physaddr_t
+) (pte) & ~0xFFF)
+
+	)
+
+79 #define 
+	#CR0_PE
+ 0x00000001
+
+80 #define 
+	#CR0_MP
+ 0x00000002
+
+81 #define 
+	#CR0_EM
+ 0x00000004
+
+82 #define 
+	#CR0_TS
+ 0x00000008
+
+83 #define 
+	#CR0_ET
+ 0x00000010
+
+84 #define 
+	#CR0_NE
+ 0x00000020
+
+85 #define 
+	#CR0_WP
+ 0x00010000
+
+86 #define 
+	#CR0_AM
+ 0x00040000
+
+87 #define 
+	#CR0_NW
+ 0x20000000
+
+88 #define 
+	#CR0_CD
+ 0x40000000
+
+89 #define 
+	#CR0_PG
+ 0x80000000
+
+90 
+
+	)
+
+91 #define 
+	#CR4_PCE
+ 0x00000100
+
+92 #define 
+	#CR4_MCE
+ 0x00000040
+
+93 #define 
+	#CR4_PSE
+ 0x00000010
+
+94 #define 
+	#CR4_DE
+ 0x00000008
+
+95 #define 
+	#CR4_TSD
+ 0x00000004
+
+96 #define 
+	#CR4_PVI
+ 0x00000002
+
+97 #define 
+	#CR4_VME
+ 0x00000001
+
+98 
+
+	)
+
+100 #define 
+	#FL_CF
+ 0x00000001
+
+101 #define 
+	#FL_PF
+ 0x00000004
+
+102 #define 
+	#FL_AF
+ 0x00000010
+
+103 #define 
+	#FL_ZF
+ 0x00000040
+
+104 #define 
+	#FL_SF
+ 0x00000080
+
+105 #define 
+	#FL_TF
+ 0x00000100
+
+106 #define 
+	#FL_IF
+ 0x00000200
+
+107 #define 
+	#FL_DF
+ 0x00000400
+
+108 #define 
+	#FL_OF
+ 0x00000800
+
+109 #define 
+	#FL_IOPL_MASK
+ 0x00003000
+
+110 #define 
+	#FL_IOPL_0
+ 0x00000000
+
+111 #define 
+	#FL_IOPL_1
+ 0x00001000
+
+112 #define 
+	#FL_IOPL_2
+ 0x00002000
+
+113 #define 
+	#FL_IOPL_3
+ 0x00003000
+
+114 #define 
+	#FL_NT
+ 0x00004000
+
+115 #define 
+	#FL_RF
+ 0x00010000
+
+116 #define 
+	#FL_VM
+ 0x00020000
+
+117 #define 
+	#FL_AC
+ 0x00040000
+
+118 #define 
+	#FL_VIF
+ 0x00080000
+
+119 #define 
+	#FL_VIP
+ 0x00100000
+
+120 #define 
+	#FL_ID
+ 0x00200000
+
+121 
+
+	)
+
+123 #define 
+	#FEC_PR
+ 0x1
+
+124 #define 
+	#FEC_WR
+ 0x2
+
+125 #define 
+	#FEC_U
+ 0x4
+
+126 
+
+	)
+
+134 #ifdef 
+__ASSEMBLER__
+
+
+139 #define 
+	#SEG_NULL
+ \
+
+140 .
+word
+ 0, 0; \
+
+141 .
+byte
+ 0, 0, 0, 0
+
+	)
+
+142 #define 
+	#SEG
+(
+type
+,
+base
+,
+lim
+) \
+
+143 .
+	`word
+ (((
+lim
+) >> 12) & 0xffff), ((
+base
+) & 0xffff); \
+
+144 .
+	`byte
+ (((
+base
+) >> 16) & 0xff), (0x90 | (
+type
+)), \
+
+145 (0xC0 | (((
+lim
+) >> 28) & 0xf)), (((
+base
+) >> 24) & 0xff)
+
+	)
+
+149 #include 
+	~<inc/types.h
+>
+
+152 struct 
+	sSegdesc
+ {
+
+153 unsigned 
+	msd_lim_15_0
+ : 16;
+
+154 unsigned 
+	msd_base_15_0
+ : 16;
+
+155 unsigned 
+	msd_base_23_16
+ : 8;
+
+156 unsigned 
+	msd_type
+ : 4;
+
+157 unsigned 
+	msd_s
+ : 1;
+
+158 unsigned 
+	msd_dpl
+ : 2;
+
+159 unsigned 
+	msd_p
+ : 1;
+
+160 unsigned 
+	msd_lim_19_16
+ : 4;
+
+161 unsigned 
+	msd_avl
+ : 1;
+
+162 unsigned 
+	msd_rsv1
+ : 1;
+
+163 unsigned 
+	msd_db
+ : 1;
+
+164 unsigned 
+	msd_g
+ : 1;
+
+165 unsigned 
+	msd_base_31_24
+ : 8;
+
+168 #define 
+	#SEG_NULL
+ (struct 
+Segdesc
+){ 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0 }
+
+	)
+
+170 #define 
+	#SEG_FAULT
+ (struct 
+Segdesc
+){ 0, 0, 0, 0, 1, 0, 1, 0, 0, 0, 1, 0, 0 }
+
+	)
+
+172 #define 
+	#SEG
+(
+type
+, 
+base
+, 
+lim
+, 
+dpl
+) (struct 
+Segdesc
+) \
+
+173 { ((
+lim
+) >> 12) & 0xffff, (
+base
+) & 0xffff, ((base) >> 16) & 0xff, \
+
+174 
+type
+, 1, 
+dpl
+, 1, (unsigned) (
+lim
+) >> 28, 0, 0, 1, 1, \
+
+175 (unsigned) (
+base
+) >> 24 }
+
+	)
+
+176 #define 
+	#SEG16
+(
+type
+, 
+base
+, 
+lim
+, 
+dpl
+) (struct 
+Segdesc
+) \
+
+177 { (
+lim
+) & 0xffff, (
+base
+) & 0xffff, ((base) >> 16) & 0xff, \
+
+178 
+type
+, 1, 
+dpl
+, 1, (unsigned) (
+lim
+) >> 16, 0, 0, 1, 0, \
+
+179 (unsigned) (
+base
+) >> 24 }
+
+	)
+
+184 #define 
+	#STA_X
+ 0x8
+
+185 #define 
+	#STA_E
+ 0x4
+
+186 #define 
+	#STA_C
+ 0x4
+
+187 #define 
+	#STA_W
+ 0x2
+
+188 #define 
+	#STA_R
+ 0x2
+
+189 #define 
+	#STA_A
+ 0x1
+
+190 
+
+	)
+
+192 #define 
+	#STS_T16A
+ 0x1
+
+193 #define 
+	#STS_LDT
+ 0x2
+
+194 #define 
+	#STS_T16B
+ 0x3
+
+195 #define 
+	#STS_CG16
+ 0x4
+
+196 #define 
+	#STS_TG
+ 0x5
+
+197 #define 
+	#STS_IG16
+ 0x6
+
+198 #define 
+	#STS_TG16
+ 0x7
+
+199 #define 
+	#STS_T32A
+ 0x9
+
+200 #define 
+	#STS_T32B
+ 0xB
+
+201 #define 
+	#STS_CG32
+ 0xC
+
+202 #define 
+	#STS_IG32
+ 0xE
+
+203 #define 
+	#STS_TG32
+ 0xF
+
+204 
+
+	)
+
+212 #ifndef 
+__ASSEMBLER__
+
+
+215 struct 
+	sTaskstate
+ {
+
+216 
+uint32_t
+ 
+	mts_link
+;
+
+217 
+uintptr_t
+ 
+	mts_esp0
+;
+
+218 
+uint16_t
+ 
+	mts_ss0
+;
+
+219 
+uint16_t
+ 
+	mts_padding1
+;
+
+220 
+uintptr_t
+ 
+	mts_esp1
+;
+
+221 
+uint16_t
+ 
+	mts_ss1
+;
+
+222 
+uint16_t
+ 
+	mts_padding2
+;
+
+223 
+uintptr_t
+ 
+	mts_esp2
+;
+
+224 
+uint16_t
+ 
+	mts_ss2
+;
+
+225 
+uint16_t
+ 
+	mts_padding3
+;
+
+226 
+physaddr_t
+ 
+	mts_cr3
+;
+
+227 
+uintptr_t
+ 
+	mts_eip
+;
+
+228 
+uint32_t
+ 
+	mts_eflags
+;
+
+229 
+uint32_t
+ 
+	mts_eax
+;
+
+230 
+uint32_t
+ 
+	mts_ecx
+;
+
+231 
+uint32_t
+ 
+	mts_edx
+;
+
+232 
+uint32_t
+ 
+	mts_ebx
+;
+
+233 
+uintptr_t
+ 
+	mts_esp
+;
+
+234 
+uintptr_t
+ 
+	mts_ebp
+;
+
+235 
+uint32_t
+ 
+	mts_esi
+;
+
+236 
+uint32_t
+ 
+	mts_edi
+;
+
+237 
+uint16_t
+ 
+	mts_es
+;
+
+238 
+uint16_t
+ 
+	mts_padding4
+;
+
+239 
+uint16_t
+ 
+	mts_cs
+;
+
+240 
+uint16_t
+ 
+	mts_padding5
+;
+
+241 
+uint16_t
+ 
+	mts_ss
+;
+
+242 
+uint16_t
+ 
+	mts_padding6
+;
+
+243 
+uint16_t
+ 
+	mts_ds
+;
+
+244 
+uint16_t
+ 
+	mts_padding7
+;
+
+245 
+uint16_t
+ 
+	mts_fs
+;
+
+246 
+uint16_t
+ 
+	mts_padding8
+;
+
+247 
+uint16_t
+ 
+	mts_gs
+;
+
+248 
+uint16_t
+ 
+	mts_padding9
+;
+
+249 
+uint16_t
+ 
+	mts_ldt
+;
+
+250 
+uint16_t
+ 
+	mts_padding10
+;
+
+251 
+uint16_t
+ 
+	mts_t
+;
+
+252 
+uint16_t
+ 
+	mts_iomb
+;
+
+256 struct 
+	sGatedesc
+ {
+
+257 unsigned 
+	mgd_off_15_0
+ : 16;
+
+258 unsigned 
+	mgd_sel
+ : 16;
+
+259 unsigned 
+	mgd_args
+ : 5;
+
+260 unsigned 
+	mgd_rsv1
+ : 3;
+
+261 unsigned 
+	mgd_type
+ : 4;
+
+262 unsigned 
+	mgd_s
+ : 1;
+
+263 unsigned 
+	mgd_dpl
+ : 2;
+
+264 unsigned 
+	mgd_p
+ : 1;
+
+265 unsigned 
+	mgd_off_31_16
+ : 16;
+
+282 #define 
+	#SETGATE
+(
+gate
+, 
+istrap
+, 
+sel
+, 
+off
+, 
+dpl
+) \
+
+284 (
+gate
+).
+gd_off_15_0
+ = (
+uint32_t
+) (
+off
+) & 0xffff; \
+
+285 (
+gate
+).
+gd_sel
+ = (
+sel
+); \
+
+286 (
+gate
+).
+gd_args
+ = 0; \
+
+287 (
+gate
+).
+gd_rsv1
+ = 0; \
+
+288 (
+gate
+).
+gd_type
+ = (
+istrap
+) ? 
+STS_TG32
+ : 
+STS_IG32
+; \
+
+289 (
+gate
+).
+gd_s
+ = 0; \
+
+290 (
+gate
+).
+gd_dpl
+ = (
+dpl
+); \
+
+291 (
+gate
+).
+gd_p
+ = 1; \
+
+292 (
+gate
+).
+gd_off_31_16
+ = (
+uint32_t
+) (
+off
+) >> 16; \
+
+293 }
+
+	)
+
+296 #define 
+	#SETCALLGATE
+(
+gate
+, 
+sel
+, 
+off
+, 
+dpl
+) \
+
+298 (
+gate
+).
+gd_off_15_0
+ = (
+uint32_t
+) (
+off
+) & 0xffff; \
+
+299 (
+gate
+).
+gd_sel
+ = (
+sel
+); \
+
+300 (
+gate
+).
+gd_args
+ = 0; \
+
+301 (
+gate
+).
+gd_rsv1
+ = 0; \
+
+302 (
+gate
+).
+gd_type
+ = 
+STS_CG32
+; \
+
+303 (
+gate
+).
+gd_s
+ = 0; \
+
+304 (
+gate
+).
+gd_dpl
+ = (
+dpl
+); \
+
+305 (
+gate
+).
+gd_p
+ = 1; \
+
+306 (
+gate
+).
+gd_off_31_16
+ = (
+uint32_t
+) (
+off
+) >> 16; \
+
+307 }
+
+	)
+
+310 struct 
+	sPseudodesc
+ {
+
+311 
+uint16_t
+ 
+	mpd_lim
+;
+
+312 
+uint32_t
+ 
+	mpd_base
+;
+
+313 } 
+__attribute__
+ ((
+packed
+));
+
+	@inc/stab.h
+
+1 #ifndef 
+JOS_STAB_H
+
+
+2 #define 
+	#JOS_STAB_H
+
+
+	)
+
+3 #include 
+	~<inc/types.h
+>
+
+15 #define 
+	#N_GSYM
+ 0x20
+
+16 #define 
+	#N_FNAME
+ 0x22
+
+17 #define 
+	#N_FUN
+ 0x24
+
+18 #define 
+	#N_STSYM
+ 0x26
+
+19 #define 
+	#N_LCSYM
+ 0x28
+
+20 #define 
+	#N_MAIN
+ 0x2a
+
+21 #define 
+	#N_PC
+ 0x30
+
+22 #define 
+	#N_RSYM
+ 0x40
+
+23 #define 
+	#N_SLINE
+ 0x44
+
+24 #define 
+	#N_DSLINE
+ 0x46
+
+25 #define 
+	#N_BSLINE
+ 0x48
+
+26 #define 
+	#N_SSYM
+ 0x60
+
+27 #define 
+	#N_SO
+ 0x64
+
+28 #define 
+	#N_LSYM
+ 0x80
+
+29 #define 
+	#N_BINCL
+ 0x82
+
+30 #define 
+	#N_SOL
+ 0x84
+
+31 #define 
+	#N_PSYM
+ 0xa0
+
+32 #define 
+	#N_EINCL
+ 0xa2
+
+33 #define 
+	#N_ENTRY
+ 0xa4
+
+34 #define 
+	#N_LBRAC
+ 0xc0
+
+35 #define 
+	#N_EXCL
+ 0xc2
+
+36 #define 
+	#N_RBRAC
+ 0xe0
+
+37 #define 
+	#N_BCOMM
+ 0xe2
+
+38 #define 
+	#N_ECOMM
+ 0xe4
+
+39 #define 
+	#N_ECOML
+ 0xe8
+
+40 #define 
+	#N_LENG
+ 0xfe
+
+41 
+
+	)
+
+43 struct 
+	sStab
+ {
+
+44 
+uint32_t
+ 
+	mn_strx
+;
+
+45 
+uint8_t
+ 
+	mn_type
+;
+
+46 
+uint8_t
+ 
+	mn_other
+;
+
+47 
+uint16_t
+ 
+	mn_desc
+;
+
+48 
+uintptr_t
+ 
+	mn_value
+;
+
+	@inc/stdarg.h
+
+3 #ifndef 
+JOS_INC_STDARG_H
+
+
+4 #define 
+	#JOS_INC_STDARG_H
+
+
+	)
+
+6 typedef 
+__builtin_va_list
+ 
+	tva_list
+;
+
+8 #define 
+	#va_start
+(
+ap
+, 
+last
+) 
+	`__builtin_va_start
+(ap, last)
+
+	)
+
+10 #define 
+	#va_arg
+(
+ap
+, 
+type
+) 
+	`__builtin_va_arg
+(ap, type)
+
+	)
+
+12 #define 
+	#va_end
+(
+ap
+) 
+	`__builtin_va_end
+(ap)
+
+	)
+
+	@inc/stdio.h
+
+1 #ifndef 
+JOS_INC_STDIO_H
+
+
+2 #define 
+	#JOS_INC_STDIO_H
+
+
+	)
+
+4 #include 
+	~<inc/stdarg.h
+>
+
+6 #ifndef 
+NULL
+
+
+7 #define 
+	#NULL
+ ((void *) 0)
+
+	)
+
+11 void 
+cputchar
+(int 
+c
+);
+
+12 int 
+getchar
+(void);
+
+13 int 
+iscons
+(int 
+fd
+);
+
+16 void 
+printfmt
+(void (*
+putch
+)(int, void*), void *
+putdat
+, const char *
+fmt
+, ...);
+
+17 void 
+	`vprintfmt
+(void (*
+putch
+)(int, void*), void *
+putdat
+, const char *
+fmt
+, 
+va_list
+);
+
+18 int 
+	`snprintf
+(char *
+str
+, int 
+size
+, const char *
+fmt
+, ...);
+
+19 int 
+	`vsnprintf
+(char *
+str
+, int 
+size
+, const char *
+fmt
+, 
+va_list
+);
+
+22 int 
+	`cprintf
+(const char *
+fmt
+, ...);
+
+23 int 
+	`vcprintf
+(const char *
+fmt
+, 
+va_list
+);
+
+26 int 
+	`printf
+(const char *
+fmt
+, ...);
+
+27 int 
+	`fprintf
+(int 
+fd
+, const char *
+fmt
+, ...);
+
+28 int 
+	`vfprintf
+(int 
+fd
+, const char *
+fmt
+, 
+va_list
+);
+
+31 char* 
+	`readline
+(const char *
+prompt
+);
+
+	@inc/string.h
+
+1 #ifndef 
+JOS_INC_STRING_H
+
+
+2 #define 
+	#JOS_INC_STRING_H
+
+
+	)
+
+4 #include 
+	~<inc/types.h
+>
+
+6 int 
+strlen
+(const char *
+s
+);
+
+7 int 
+strnlen
+(const char *
+s
+, 
+size_t
+ 
+size
+);
+
+8 char * 
+strcpy
+(char *
+dst
+, const char *
+src
+);
+
+9 char * 
+strncpy
+(char *
+dst
+, const char *
+src
+, 
+size_t
+ 
+size
+);
+
+10 char * 
+strcat
+(char *
+dst
+, const char *
+src
+);
+
+11 
+size_t
+ 
+strlcpy
+(char *
+dst
+, const char *
+src
+, size_t 
+size
+);
+
+12 int 
+strcmp
+(const char *
+s1
+, const char *
+s2
+);
+
+13 int 
+strncmp
+(const char *
+s1
+, const char *
+s2
+, 
+size_t
+ 
+size
+);
+
+14 char * 
+strchr
+(const char *
+s
+, char 
+c
+);
+
+15 char * 
+strfind
+(const char *
+s
+, char 
+c
+);
+
+17 void * 
+memset
+(void *
+dst
+, int 
+c
+, 
+size_t
+ 
+len
+);
+
+18 void * 
+memcpy
+(void *
+dst
+, const void *
+src
+, 
+size_t
+ 
+len
+);
+
+19 void * 
+memmove
+(void *
+dst
+, const void *
+src
+, 
+size_t
+ 
+len
+);
+
+20 int 
+memcmp
+(const void *
+s1
+, const void *
+s2
+, 
+size_t
+ 
+len
+);
+
+21 void * 
+memfind
+(const void *
+s
+, int 
+c
+, 
+size_t
+ 
+len
+);
+
+23 long 
+strtol
+(const char *
+s
+, char **
+endptr
+, int 
+base
+);
+
+	@inc/types.h
+
+1 #ifndef 
+JOS_INC_TYPES_H
+
+
+2 #define 
+	#JOS_INC_TYPES_H
+
+
+	)
+
+4 #ifndef 
+NULL
+
+
+5 #define 
+	#NULL
+ ((void*) 0)
+
+	)
+
+9 typedef 
+_Bool
+ 
+	tbool
+;
+
+10 enum { 
+	mfalse
+, 
+	mtrue
+ };
+
+13 typedef 
+__signed
+ char 
+	tint8_t
+;
+
+14 typedef unsigned char 
+	tuint8_t
+;
+
+15 typedef short 
+	tint16_t
+;
+
+16 typedef unsigned short 
+	tuint16_t
+;
+
+17 typedef int 
+	tint32_t
+;
+
+18 typedef unsigned int 
+	tuint32_t
+;
+
+19 typedef long long 
+	tint64_t
+;
+
+20 typedef unsigned long long 
+	tuint64_t
+;
+
+26 typedef 
+int32_t
+ 
+	tintptr_t
+;
+
+27 typedef 
+uint32_t
+ 
+	tuintptr_t
+;
+
+28 typedef 
+uint32_t
+ 
+	tphysaddr_t
+;
+
+31 typedef 
+uint32_t
+ 
+	tppn_t
+;
+
+34 typedef 
+uint32_t
+ 
+	tsize_t
+;
+
+37 typedef 
+int32_t
+ 
+	tssize_t
+;
+
+40 typedef 
+int32_t
+ 
+	toff_t
+;
+
+43 #define 
+	#MIN
+(
+_a
+, 
+_b
+) \
+
+45 
+	`typeof
+(
+_a
+) 
+__a
+ = (_a); \
+
+46 
+	`typeof
+(
+_b
+) 
+__b
+ = (_b); \
+
+47 
+__a
+ <= 
+__b
+ ? __a : __b; \
+
+48 })
+
+	)
+
+49 #define 
+	#MAX
+(
+_a
+, 
+_b
+) \
+
+51 
+	`typeof
+(
+_a
+) 
+__a
+ = (_a); \
+
+52 
+	`typeof
+(
+_b
+) 
+__b
+ = (_b); \
+
+53 
+__a
+ >= 
+__b
+ ? __a : __b; \
+
+54 })
+
+	)
+
+58 #define 
+	#ROUNDDOWN
+(
+a
+, 
+n
+) \
+
+60 
+uint32_t
+ 
+__a
+ = (uint32_t) (
+a
+); \
+
+61 (
+	`typeof
+(
+a
+)) (
+__a
+ - __a % (
+n
+)); \
+
+62 })
+
+	)
+
+64 #define 
+	#ROUNDUP
+(
+a
+, 
+n
+) \
+
+66 
+uint32_t
+ 
+__n
+ = (uint32_t) (
+n
+); \
+
+67 (
+	`typeof
+(
+a
+)) (
+	`ROUNDDOWN
+((
+uint32_t
+) (a) + 
+__n
+ - 1, __n)); \
+
+68 })
+
+	)
+
+71 #define 
+	#offsetof
+(
+type
+, 
+member
+) ((
+size_t
+) (&((type*)0)->member))
+
+	)
+
+	@inc/x86.h
+
+1 #ifndef 
+JOS_INC_X86_H
+
+
+2 #define 
+	#JOS_INC_X86_H
+
+
+	)
+
+4 #include 
+	~<inc/types.h
+>
+
+6 static 
+__inline
+ void 
+	$breakpoint
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+7 static 
+__inline
+ 
+uint8_t
+ 
+	$inb
+(int 
+port
+) 
+	`__attribute__
+((
+always_inline
+));
+
+8 static 
+__inline
+ void 
+	$insb
+(int 
+port
+, void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+9 static 
+__inline
+ 
+uint16_t
+ 
+	$inw
+(int 
+port
+) 
+	`__attribute__
+((
+always_inline
+));
+
+10 static 
+__inline
+ void 
+	$insw
+(int 
+port
+, void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+11 static 
+__inline
+ 
+uint32_t
+ 
+	$inl
+(int 
+port
+) 
+	`__attribute__
+((
+always_inline
+));
+
+12 static 
+__inline
+ void 
+	$insl
+(int 
+port
+, void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+13 static 
+__inline
+ void 
+	$outb
+(int 
+port
+, 
+uint8_t
+ 
+data
+) 
+	`__attribute__
+((
+always_inline
+));
+
+14 static 
+__inline
+ void 
+	$outsb
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+15 static 
+__inline
+ void 
+	$outw
+(int 
+port
+, 
+uint16_t
+ 
+data
+) 
+	`__attribute__
+((
+always_inline
+));
+
+16 static 
+__inline
+ void 
+	$outsw
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+17 static 
+__inline
+ void 
+	$outsl
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+) 
+	`__attribute__
+((
+always_inline
+));
+
+18 static 
+__inline
+ void 
+	$outl
+(int 
+port
+, 
+uint32_t
+ 
+data
+) 
+	`__attribute__
+((
+always_inline
+));
+
+19 static 
+__inline
+ void 
+	$invlpg
+(void *
+addr
+) 
+	`__attribute__
+((
+always_inline
+));
+
+20 static 
+__inline
+ void 
+	$lidt
+(void *
+p
+) 
+	`__attribute__
+((
+always_inline
+));
+
+21 static 
+__inline
+ void 
+	$lldt
+(
+uint16_t
+ 
+sel
+) 
+	`__attribute__
+((
+always_inline
+));
+
+22 static 
+__inline
+ void 
+	$ltr
+(
+uint16_t
+ 
+sel
+) 
+	`__attribute__
+((
+always_inline
+));
+
+23 static 
+__inline
+ void 
+	$lcr0
+(
+uint32_t
+ 
+val
+) 
+	`__attribute__
+((
+always_inline
+));
+
+24 static 
+__inline
+ 
+uint32_t
+ 
+	$rcr0
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+25 static 
+__inline
+ 
+uint32_t
+ 
+	$rcr2
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+26 static 
+__inline
+ void 
+	$lcr3
+(
+uint32_t
+ 
+val
+) 
+	`__attribute__
+((
+always_inline
+));
+
+27 static 
+__inline
+ 
+uint32_t
+ 
+	$rcr3
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+28 static 
+__inline
+ void 
+	$lcr4
+(
+uint32_t
+ 
+val
+) 
+	`__attribute__
+((
+always_inline
+));
+
+29 static 
+__inline
+ 
+uint32_t
+ 
+	$rcr4
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+30 static 
+__inline
+ void 
+	$tlbflush
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+31 static 
+__inline
+ 
+uint32_t
+ 
+	$read_eflags
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+32 static 
+__inline
+ void 
+	$write_eflags
+(
+uint32_t
+ 
+eflags
+) 
+	`__attribute__
+((
+always_inline
+));
+
+33 static 
+__inline
+ 
+uint32_t
+ 
+	$read_ebp
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+34 static 
+__inline
+ 
+uint32_t
+ 
+	$read_esp
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+35 static 
+__inline
+ void 
+	`cpuid
+(
+uint32_t
+ 
+info
+, uint32_t *
+eaxp
+, uint32_t *
+ebxp
+, uint32_t *
+ecxp
+, uint32_t *
+edxp
+);
+
+36 static 
+__inline
+ 
+uint64_t
+ 
+	$read_tsc
+(void) 
+	`__attribute__
+((
+always_inline
+));
+
+38 static 
+__inline
+ void
+
+39 
+	$breakpoint
+(void)
+
+41 
+__asm
+ 
+	`__volatile
+("int3");
+
+42 
+	}
+}
+
+44 static 
+__inline
+ 
+uint8_t
+
+
+45 
+	$inb
+(int 
+port
+)
+
+47 
+uint8_t
+ 
+data
+;
+
+48 
+__asm
+ 
+	`__volatile
+("inb %w1,%0" : "=a" (
+data
+) : "d" (
+port
+));
+
+49 return 
+data
+;
+
+50 
+	}
+}
+
+52 static 
+__inline
+ void
+
+53 
+	$insb
+(int 
+port
+, void *
+addr
+, int 
+cnt
+)
+
+55 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\tinsb" :
+
+56 "=D" (
+addr
+), "=c" (
+cnt
+) :
+
+57 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+59 
+	}
+}
+
+61 static 
+__inline
+ 
+uint16_t
+
+
+62 
+	$inw
+(int 
+port
+)
+
+64 
+uint16_t
+ 
+data
+;
+
+65 
+__asm
+ 
+	`__volatile
+("inw %w1,%0" : "=a" (
+data
+) : "d" (
+port
+));
+
+66 return 
+data
+;
+
+67 
+	}
+}
+
+69 static 
+__inline
+ void
+
+70 
+	$insw
+(int 
+port
+, void *
+addr
+, int 
+cnt
+)
+
+72 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\tinsw" :
+
+73 "=D" (
+addr
+), "=c" (
+cnt
+) :
+
+74 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+76 
+	}
+}
+
+78 static 
+__inline
+ 
+uint32_t
+
+
+79 
+	$inl
+(int 
+port
+)
+
+81 
+uint32_t
+ 
+data
+;
+
+82 
+__asm
+ 
+	`__volatile
+("inl %w1,%0" : "=a" (
+data
+) : "d" (
+port
+));
+
+83 return 
+data
+;
+
+84 
+	}
+}
+
+86 static 
+__inline
+ void
+
+87 
+	$insl
+(int 
+port
+, void *
+addr
+, int 
+cnt
+)
+
+89 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\tinsl" :
+
+90 "=D" (
+addr
+), "=c" (
+cnt
+) :
+
+91 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+93 
+	}
+}
+
+95 static 
+__inline
+ void
+
+96 
+	$outb
+(int 
+port
+, 
+uint8_t
+ 
+data
+)
+
+98 
+__asm
+ 
+	`__volatile
+("outb %0,%w1" : : "a" (
+data
+), "d" (
+port
+));
+
+99 
+	}
+}
+
+101 static 
+__inline
+ void
+
+102 
+	$outsb
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+)
+
+104 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\toutsb" :
+
+105 "=S" (
+addr
+), "=c" (
+cnt
+) :
+
+106 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+108 
+	}
+}
+
+110 static 
+__inline
+ void
+
+111 
+	$outw
+(int 
+port
+, 
+uint16_t
+ 
+data
+)
+
+113 
+__asm
+ 
+	`__volatile
+("outw %0,%w1" : : "a" (
+data
+), "d" (
+port
+));
+
+114 
+	}
+}
+
+116 static 
+__inline
+ void
+
+117 
+	$outsw
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+)
+
+119 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\toutsw" :
+
+120 "=S" (
+addr
+), "=c" (
+cnt
+) :
+
+121 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+123 
+	}
+}
+
+125 static 
+__inline
+ void
+
+126 
+	$outsl
+(int 
+port
+, const void *
+addr
+, int 
+cnt
+)
+
+128 
+__asm
+ 
+	`__volatile
+("cld\n\trepne\n\toutsl" :
+
+129 "=S" (
+addr
+), "=c" (
+cnt
+) :
+
+130 "d" (
+port
+), "0" (
+addr
+), "1" (
+cnt
+) :
+
+132 
+	}
+}
+
+134 static 
+__inline
+ void
+
+135 
+	$outl
+(int 
+port
+, 
+uint32_t
+ 
+data
+)
+
+137 
+__asm
+ 
+	`__volatile
+("outl %0,%w1" : : "a" (
+data
+), "d" (
+port
+));
+
+138 
+	}
+}
+
+140 static 
+__inline
+ void
+
+141 
+	$invlpg
+(void *
+addr
+)
+
+143 
+__asm
+ 
+	`__volatile
+("invlpg (%0)" : : "r" (
+addr
+) : "memory");
+
+144 
+	}
+}
+
+146 static 
+__inline
+ void
+
+147 
+	$lidt
+(void *
+p
+)
+
+149 
+__asm
+ 
+	`__volatile
+("lidt (%0)" : : "r" (
+p
+));
+
+150 
+	}
+}
+
+152 static 
+__inline
+ void
+
+153 
+	$lgdt
+(void *
+p
+)
+
+155 
+__asm
+ 
+	`__volatile
+("lgdt (%0)" : : "r" (
+p
+));
+
+156 
+	}
+}
+
+158 static 
+__inline
+ void
+
+159 
+	$lldt
+(
+uint16_t
+ 
+sel
+)
+
+161 
+__asm
+ 
+	`__volatile
+("lldt %0" : : "r" (
+sel
+));
+
+162 
+	}
+}
+
+164 static 
+__inline
+ void
+
+165 
+	$ltr
+(
+uint16_t
+ 
+sel
+)
+
+167 
+__asm
+ 
+	`__volatile
+("ltr %0" : : "r" (
+sel
+));
+
+168 
+	}
+}
+
+170 static 
+__inline
+ void
+
+171 
+	$lcr0
+(
+uint32_t
+ 
+val
+)
+
+173 
+__asm
+ 
+	`__volatile
+("movl %0,%%cr0" : : "r" (
+val
+));
+
+174 
+	}
+}
+
+176 static 
+__inline
+ 
+uint32_t
+
+
+177 
+	$rcr0
+(void)
+
+179 
+uint32_t
+ 
+val
+;
+
+180 
+__asm
+ 
+	`__volatile
+("movl %%cr0,%0" : "=r" (
+val
+));
+
+181 return 
+val
+;
+
+182 
+	}
+}
+
+184 static 
+__inline
+ 
+uint32_t
+
+
+185 
+	$rcr2
+(void)
+
+187 
+uint32_t
+ 
+val
+;
+
+188 
+__asm
+ 
+	`__volatile
+("movl %%cr2,%0" : "=r" (
+val
+));
+
+189 return 
+val
+;
+
+190 
+	}
+}
+
+192 static 
+__inline
+ void
+
+193 
+	$lcr3
+(
+uint32_t
+ 
+val
+)
+
+195 
+__asm
+ 
+	`__volatile
+("movl %0,%%cr3" : : "r" (
+val
+));
+
+196 
+	}
+}
+
+198 static 
+__inline
+ 
+uint32_t
+
+
+199 
+	$rcr3
+(void)
+
+201 
+uint32_t
+ 
+val
+;
+
+202 
+__asm
+ 
+	`__volatile
+("movl %%cr3,%0" : "=r" (
+val
+));
+
+203 return 
+val
+;
+
+204 
+	}
+}
+
+206 static 
+__inline
+ void
+
+207 
+	$lcr4
+(
+uint32_t
+ 
+val
+)
+
+209 
+__asm
+ 
+	`__volatile
+("movl %0,%%cr4" : : "r" (
+val
+));
+
+210 
+	}
+}
+
+212 static 
+__inline
+ 
+uint32_t
+
+
+213 
+	$rcr4
+(void)
+
+215 
+uint32_t
+ 
+cr4
+;
+
+216 
+__asm
+ 
+	`__volatile
+("movl %%cr4,%0" : "=r" (
+cr4
+));
+
+217 return 
+cr4
+;
+
+218 
+	}
+}
+
+220 static 
+__inline
+ void
+
+221 
+	$tlbflush
+(void)
+
+223 
+uint32_t
+ 
+cr3
+;
+
+224 
+__asm
+ 
+	`__volatile
+("movl %%cr3,%0" : "=r" (
+cr3
+));
+
+225 
+__asm
+ 
+	`__volatile
+("movl %0,%%cr3" : : "r" (
+cr3
+));
+
+226 
+	}
+}
+
+228 static 
+__inline
+ 
+uint32_t
+
+
+229 
+	$read_eflags
+(void)
+
+231 
+uint32_t
+ 
+eflags
+;
+
+232 
+__asm
+ 
+	`__volatile
+("pushfl; popl %0" : "=r" (
+eflags
+));
+
+233 return 
+eflags
+;
+
+234 
+	}
+}
+
+236 static 
+__inline
+ void
+
+237 
+	$write_eflags
+(
+uint32_t
+ 
+eflags
+)
+
+239 
+__asm
+ 
+	`__volatile
+("pushl %0; popfl" : : "r" (
+eflags
+));
+
+240 
+	}
+}
+
+242 static 
+__inline
+ 
+uint32_t
+
+
+243 
+	$read_ebp
+(void)
+
+245 
+uint32_t
+ 
+ebp
+;
+
+246 
+__asm
+ 
+	`__volatile
+("movl %%ebp,%0" : "=r" (
+ebp
+));
+
+247 return 
+ebp
+;
+
+248 
+	}
+}
+
+250 static 
+__inline
+ 
+uint32_t
+
+
+251 
+	$read_esp
+(void)
+
+253 
+uint32_t
+ 
+esp
+;
+
+254 
+__asm
+ 
+	`__volatile
+("movl %%esp,%0" : "=r" (
+esp
+));
+
+255 return 
+esp
+;
+
+256 
+	}
+}
+
+258 static 
+__inline
+ void
+
+259 
+	$cpuid
+(
+uint32_t
+ 
+info
+, uint32_t *
+eaxp
+, uint32_t *
+ebxp
+, uint32_t *
+ecxp
+, uint32_t *
+edxp
+)
+
+261 
+uint32_t
+ 
+eax
+, 
+ebx
+, 
+ecx
+, 
+edx
+;
+
+262 
+asm
+ volatile("cpuid"
+
+263 : "=a" (
+eax
+), "=b" (
+ebx
+), "=c" (
+ecx
+), "=d" (
+edx
+)
+
+264 : "a" (
+info
+));
+
+265 if (
+eaxp
+)
+
+266 *
+eaxp
+ = 
+eax
+;
+
+267 if (
+ebxp
+)
+
+268 *
+ebxp
+ = 
+ebx
+;
+
+269 if (
+ecxp
+)
+
+270 *
+ecxp
+ = 
+ecx
+;
+
+271 if (
+edxp
+)
+
+272 *
+edxp
+ = 
+edx
+;
+
+273 
+	}
+}
+
+275 static 
+__inline
+ 
+uint64_t
+
+
+276 
+	$read_tsc
+(void)
+
+278 
+uint64_t
+ 
+tsc
+;
+
+279 
+__asm
+ 
+	`__volatile
+("rdtsc" : "=A" (
+tsc
+));
+
+280 return 
+tsc
+;
+
+281 
+	}
+}
+
+283 static 
+inline
+ 
+uint32_t
+
+
+284 
+	$xchg
+(volatile 
+uint32_t
+ *
+addr
+, uint32_t 
+newval
+)
+
+286 
+uint32_t
+ 
+result
+;
+
+289 
+asm
+ volatile("lock; xchgl %0, %1" :
+
+290 "+m" (*
+addr
+), "=a" (
+result
+) :
+
+291 "1" (
+newval
+) :
+
+293 return 
+result
+;
+
+294 
+	}
+}
+
+	@kern/console.c
+
+3 #include 
+	~<inc/x86.h
+>
+
+4 #include 
+	~<inc/memlayout.h
+>
+
+5 #include 
+	~<inc/kbdreg.h
+>
+
+6 #include 
+	~<inc/string.h
+>
+
+7 #include 
+	~<inc/assert.h
+>
+
+9 #include 
+	~<kern/console.h
+>
+
+11 static void 
+cons_intr
+(int (*
+proc
+)(void));
+
+12 static void 
+	`cons_putc
+(int 
+c
+);
+
+16 
+	$delay
+(void)
+
+18 
+	`inb
+(0x84);
+
+19 
+	`inb
+(0x84);
+
+20 
+	`inb
+(0x84);
+
+21 
+	`inb
+(0x84);
+
+22 
+	}
+}
+
+26 #define 
+	#COM1
+ 0x3F8
+
+	)
+
+28 #define 
+	#COM_RX
+ 0
+
+29 #define 
+	#COM_TX
+ 0
+
+30 #define 
+	#COM_DLL
+ 0
+
+31 #define 
+	#COM_DLM
+ 1
+
+32 #define 
+	#COM_IER
+ 1
+
+33 #define 
+	#COM_IER_RDI
+ 0x01
+
+34 #define 
+	#COM_IIR
+ 2
+
+35 #define 
+	#COM_FCR
+ 2
+
+36 #define 
+	#COM_LCR
+ 3
+
+37 #define 
+	#COM_LCR_DLAB
+ 0x80
+
+38 #define 
+	#COM_LCR_WLEN8
+ 0x03
+
+39 #define 
+	#COM_MCR
+ 4
+
+40 #define 
+	#COM_MCR_RTS
+ 0x02
+
+41 #define 
+	#COM_MCR_DTR
+ 0x01
+
+42 #define 
+	#COM_MCR_OUT2
+ 0x08
+
+43 #define 
+	#COM_LSR
+ 5
+
+44 #define 
+	#COM_LSR_DATA
+ 0x01
+
+45 #define 
+	#COM_LSR_TXRDY
+ 0x20
+
+46 #define 
+	#COM_LSR_TSRE
+ 0x40
+
+47 
+
+	)
+
+48 static 
+bool
+ 
+	gserial_exists
+;
+
+51 
+	$serial_proc_data
+(void)
+
+53 if (!(
+	`inb
+(
+COM1
++
+COM_LSR
+) & 
+COM_LSR_DATA
+))
+
+55 return 
+	`inb
+(
+COM1
++
+COM_RX
+);
+
+56 
+	}
+}
+
+59 
+	$serial_intr
+(void)
+
+61 if (
+serial_exists
+)
+
+62 
+	`cons_intr
+(
+serial_proc_data
+);
+
+63 
+	}
+}
+
+66 
+	$serial_putc
+(int 
+c
+)
+
+68 int 
+i
+;
+
+70 for (
+i
+ = 0;
+
+71 !(
+	`inb
+(
+COM1
+ + 
+COM_LSR
+) & 
+COM_LSR_TXRDY
+) && 
+i
+ < 12800;
+
+72 
+i
+++)
+
+73 
+	`delay
+();
+
+75 
+	`outb
+(
+COM1
+ + 
+COM_TX
+, 
+c
+);
+
+76 
+	}
+}
+
+79 
+	$serial_init
+(void)
+
+82 
+	`outb
+(
+COM1
++
+COM_FCR
+, 0);
+
+85 
+	`outb
+(
+COM1
++
+COM_LCR
+, 
+COM_LCR_DLAB
+);
+
+86 
+	`outb
+(
+COM1
++
+COM_DLL
+, (
+uint8_t
+) (115200 / 9600));
+
+87 
+	`outb
+(
+COM1
++
+COM_DLM
+, 0);
+
+90 
+	`outb
+(
+COM1
++
+COM_LCR
+, 
+COM_LCR_WLEN8
+ & ~
+COM_LCR_DLAB
+);
+
+93 
+	`outb
+(
+COM1
++
+COM_MCR
+, 0);
+
+95 
+	`outb
+(
+COM1
++
+COM_IER
+, 
+COM_IER_RDI
+);
+
+99 
+serial_exists
+ = (
+	`inb
+(
+COM1
++
+COM_LSR
+) != 0xFF);
+
+100 (void) 
+	`inb
+(
+COM1
++
+COM_IIR
+);
+
+101 (void) 
+	`inb
+(
+COM1
++
+COM_RX
+);
+
+103 
+	}
+}
+
+112 
+	$lpt_putc
+(int 
+c
+)
+
+114 int 
+i
+;
+
+116 for (
+i
+ = 0; !(
+	`inb
+(0x378+1) & 0x80) && i < 12800; i++)
+
+117 
+	`delay
+();
+
+118 
+	`outb
+(0x378+0, 
+c
+);
+
+119 
+	`outb
+(0x378+2, 0x08|0x04|0x01);
+
+120 
+	`outb
+(0x378+2, 0x08);
+
+121 
+	}
+}
+
+128 static unsigned 
+	gaddr_6845
+;
+
+129 static 
+uint16_t
+ *
+	gcrt_buf
+;
+
+130 static 
+uint16_t
+ 
+	gcrt_pos
+;
+
+133 
+	$cga_init
+(void)
+
+135 volatile 
+uint16_t
+ *
+cp
+;
+
+136 
+uint16_t
+ 
+was
+;
+
+137 unsigned 
+pos
+;
+
+139 
+cp
+ = (
+uint16_t
+*) (
+KERNBASE
+ + 
+CGA_BUF
+);
+
+140 
+was
+ = *
+cp
+;
+
+141 *
+cp
+ = (
+uint16_t
+) 0xA55A;
+
+142 if (*
+cp
+ != 0xA55A) {
+
+143 
+cp
+ = (
+uint16_t
+*) (
+KERNBASE
+ + 
+MONO_BUF
+);
+
+144 
+addr_6845
+ = 
+MONO_BASE
+;
+
+146 *
+cp
+ = 
+was
+;
+
+147 
+addr_6845
+ = 
+CGA_BASE
+;
+
+151 
+	`outb
+(
+addr_6845
+, 14);
+
+152 
+pos
+ = 
+	`inb
+(
+addr_6845
+ + 1) << 8;
+
+153 
+	`outb
+(
+addr_6845
+, 15);
+
+154 
+pos
+ |= 
+	`inb
+(
+addr_6845
+ + 1);
+
+156 
+crt_buf
+ = (
+uint16_t
+*) 
+cp
+;
+
+157 
+crt_pos
+ = 
+pos
+;
+
+158 
+	}
+}
+
+163 
+	$cga_putc
+(int 
+c
+)
+
+166 if (!(
+c
+ & ~0xFF))
+
+167 
+c
+ |= 0x0700;
+
+169 switch (
+c
+ & 0xff) {
+
+171 if (
+crt_pos
+ > 0) {
+
+172 
+crt_pos
+--;
+
+173 
+crt_buf
+[
+crt_pos
+] = (
+c
+ & ~0xff) | ' ';
+
+177 
+crt_pos
+ += 
+CRT_COLS
+;
+
+180 
+crt_pos
+ -= (crt_pos % 
+CRT_COLS
+);
+
+183 
+	`cons_putc
+(' ');
+
+184 
+	`cons_putc
+(' ');
+
+185 
+	`cons_putc
+(' ');
+
+186 
+	`cons_putc
+(' ');
+
+187 
+	`cons_putc
+(' ');
+
+190 
+crt_buf
+[
+crt_pos
+++] = 
+c
+;
+
+195 if (
+crt_pos
+ >= 
+CRT_SIZE
+) {
+
+196 int 
+i
+;
+
+198 
+	`memmove
+(
+crt_buf
+, crt_buf + 
+CRT_COLS
+, (
+CRT_SIZE
+ - CRT_COLS) * sizeof(
+uint16_t
+));
+
+199 for (
+i
+ = 
+CRT_SIZE
+ - 
+CRT_COLS
+; i < CRT_SIZE; i++)
+
+200 
+crt_buf
+[
+i
+] = 0x0700 | ' ';
+
+201 
+crt_pos
+ -= 
+CRT_COLS
+;
+
+205 
+	`outb
+(
+addr_6845
+, 14);
+
+206 
+	`outb
+(
+addr_6845
+ + 1, 
+crt_pos
+ >> 8);
+
+207 
+	`outb
+(
+addr_6845
+, 15);
+
+208 
+	`outb
+(
+addr_6845
+ + 1, 
+crt_pos
+);
+
+209 
+	}
+}
+
+214 #define 
+	#NO
+ 0
+
+	)
+
+216 #define 
+	#SHIFT
+ (1<<0)
+
+	)
+
+217 #define 
+	#CTL
+ (1<<1)
+
+	)
+
+218 #define 
+	#ALT
+ (1<<2)
+
+	)
+
+220 #define 
+	#CAPSLOCK
+ (1<<3)
+
+	)
+
+221 #define 
+	#NUMLOCK
+ (1<<4)
+
+	)
+
+222 #define 
+	#SCROLLLOCK
+ (1<<5)
+
+	)
+
+224 #define 
+	#E0ESC
+ (1<<6)
+
+	)
+
+226 static 
+uint8_t
+ 
+	gshiftcode
+[256] =
+
+228 [0x1D] = 
+CTL
+,
+
+229 [0x2A] = 
+SHIFT
+,
+
+230 [0x36] = 
+SHIFT
+,
+
+231 [0x38] = 
+ALT
+,
+
+232 [0x9D] = 
+CTL
+,
+
+233 [0xB8] = 
+ALT
+
+
+236 static 
+uint8_t
+ 
+	gtogglecode
+[256] =
+
+238 [0x3A] = 
+CAPSLOCK
+,
+
+239 [0x45] = 
+NUMLOCK
+,
+
+240 [0x46] = 
+SCROLLLOCK
+
+
+243 static 
+uint8_t
+ 
+	gnormalmap
+[256] =
+
+245 
+NO
+, 0x1B, '1', '2', '3', '4', '5', '6',
+
+248 'o', 'p', '[', ']', '\n', 
+NO
+, 'a', 's',
+
+250 '\'', '`', 
+NO
+, '\\', 'z', 'x', 'c', 'v',
+
+251 'b', 'n', 'm', ',', '.', '/', 
+NO
+, '*',
+
+252 
+NO
+, ' ', NO, NO, NO, NO, NO, NO,
+
+253 
+NO
+, NO, NO, NO, NO, NO, NO, '7',
+
+255 '2', '3', '0', '.', 
+NO
+, NO, NO, NO,
+
+256 [0xC7] = 
+KEY_HOME
+, [0x9C] = '\n' ,
+
+257 [0xB5] = '/' , [0xC8] = 
+KEY_UP
+,
+
+258 [0xC9] = 
+KEY_PGUP
+, [0xCB] = 
+KEY_LF
+,
+
+259 [0xCD] = 
+KEY_RT
+, [0xCF] = 
+KEY_END
+,
+
+260 [0xD0] = 
+KEY_DN
+, [0xD1] = 
+KEY_PGDN
+,
+
+261 [0xD2] = 
+KEY_INS
+, [0xD3] = 
+KEY_DEL
+
+
+264 static 
+uint8_t
+ 
+	gshiftmap
+[256] =
+
+266 
+NO
+, 033, '!', '@', '#', '$', '%', '^',
+
+269 'O', 'P', '{', '}', '\n', 
+NO
+, 'A', 'S',
+
+271 '"', '~', 
+NO
+, '|', 'Z', 'X', 'C', 'V',
+
+272 'B', 'N', 'M', '<', '>', '?', 
+NO
+, '*',
+
+273 
+NO
+, ' ', NO, NO, NO, NO, NO, NO,
+
+274 
+NO
+, NO, NO, NO, NO, NO, NO, '7',
+
+276 '2', '3', '0', '.', 
+NO
+, NO, NO, NO,
+
+277 [0xC7] = 
+KEY_HOME
+, [0x9C] = '\n' ,
+
+278 [0xB5] = '/' , [0xC8] = 
+KEY_UP
+,
+
+279 [0xC9] = 
+KEY_PGUP
+, [0xCB] = 
+KEY_LF
+,
+
+280 [0xCD] = 
+KEY_RT
+, [0xCF] = 
+KEY_END
+,
+
+281 [0xD0] = 
+KEY_DN
+, [0xD1] = 
+KEY_PGDN
+,
+
+282 [0xD2] = 
+KEY_INS
+, [0xD3] = 
+KEY_DEL
+
+
+285 #define 
+	#C
+(
+x
+) (x - '@')
+
+	)
+
+287 static 
+uint8_t
+ 
+	gctlmap
+[256] =
+
+289 
+NO
+, NO, NO, NO, NO, NO, NO, NO,
+
+290 
+NO
+, NO, NO, NO, NO, NO, NO, NO,
+
+291 
+C
+('Q'), C('W'), C('E'), C('R'), C('T'), C('Y'), C('U'), C('I'),
+
+292 
+C
+('O'), C('P'), 
+NO
+, NO, '\r', NO, C('A'), C('S'),
+
+293 
+C
+('D'), C('F'), C('G'), C('H'), C('J'), C('K'), C('L'), 
+NO
+,
+
+294 
+NO
+, NO, NO, 
+C
+('\\'), C('Z'), C('X'), C('C'), C('V'),
+
+295 
+C
+('B'), C('N'), C('M'), 
+NO
+, NO, C('/'), NO, NO,
+
+296 [0x97] = 
+KEY_HOME
+,
+
+297 [0xB5] = 
+C
+('/'), [0xC8] = 
+KEY_UP
+,
+
+298 [0xC9] = 
+KEY_PGUP
+, [0xCB] = 
+KEY_LF
+,
+
+299 [0xCD] = 
+KEY_RT
+, [0xCF] = 
+KEY_END
+,
+
+300 [0xD0] = 
+KEY_DN
+, [0xD1] = 
+KEY_PGDN
+,
+
+301 [0xD2] = 
+KEY_INS
+, [0xD3] = 
+KEY_DEL
+
+
+304 static 
+uint8_t
+ *
+	gcharcode
+[4] = {
+
+305 
+normalmap
+,
+
+306 
+shiftmap
+,
+
+307 
+ctlmap
+,
+
+308 
+ctlmap
+
+
+316 
+	$kbd_proc_data
+(void)
+
+318 int 
+c
+;
+
+319 
+uint8_t
+ 
+data
+;
+
+320 static 
+uint32_t
+ 
+shift
+;
+
+322 if ((
+	`inb
+(
+KBSTATP
+) & 
+KBS_DIB
+) == 0)
+
+325 
+data
+ = 
+	`inb
+(
+KBDATAP
+);
+
+327 if (
+data
+ == 0xE0) {
+
+329 
+shift
+ |= 
+E0ESC
+;
+
+331 } else if (
+data
+ & 0x80) {
+
+333 
+data
+ = (
+shift
+ & 
+E0ESC
+ ? data : data & 0x7F);
+
+334 
+shift
+ &= ~(
+shiftcode
+[
+data
+] | 
+E0ESC
+);
+
+336 } else if (
+shift
+ & 
+E0ESC
+) {
+
+338 
+data
+ |= 0x80;
+
+339 
+shift
+ &= ~
+E0ESC
+;
+
+342 
+shift
+ |= 
+shiftcode
+[
+data
+];
+
+343 
+shift
+ ^= 
+togglecode
+[
+data
+];
+
+345 
+c
+ = 
+charcode
+[
+shift
+ & (
+CTL
+ | 
+SHIFT
+)][
+data
+];
+
+346 if (
+shift
+ & 
+CAPSLOCK
+) {
+
+347 if ('a' <= 
+c
+ && c <= 'z')
+
+348 
+c
+ += 'A' - 'a';
+
+349 else if ('A' <= 
+c
+ && c <= 'Z')
+
+350 
+c
+ += 'a' - 'A';
+
+355 if (!(~
+shift
+ & (
+CTL
+ | 
+ALT
+)) && 
+c
+ == 
+KEY_DEL
+) {
+
+356 
+	`cprintf
+("Rebooting!\n");
+
+357 
+	`outb
+(0x92, 0x3);
+
+360 return 
+c
+;
+
+361 
+	}
+}
+
+364 
+	$kbd_intr
+(void)
+
+366 
+	`cons_intr
+(
+kbd_proc_data
+);
+
+367 
+	}
+}
+
+370 
+	$kbd_init
+(void)
+
+372 
+	}
+}
+
+381 #define 
+	#CONSBUFSIZE
+ 512
+
+	)
+
+384 
+uint8_t
+ 
+	mbuf
+[
+CONSBUFSIZE
+];
+
+385 
+uint32_t
+ 
+	mrpos
+;
+
+386 
+uint32_t
+ 
+	mwpos
+;
+
+387 } 
+	gcons
+;
+
+392 
+cons_intr
+(int (*
+proc
+)(void))
+
+394 int 
+c
+;
+
+396 while ((
+c
+ = (*
+proc
+)()) != -1) {
+
+397 if (
+c
+ == 0)
+
+399 
+cons
+.
+buf
+[cons.
+wpos
+++] = 
+c
+;
+
+400 if (
+cons
+.
+wpos
+ == 
+CONSBUFSIZE
+)
+
+401 
+cons
+.
+wpos
+ = 0;
+
+403 
+	}
+}
+
+407 
+	$cons_getc
+(void)
+
+409 int 
+c
+;
+
+414 
+	`serial_intr
+();
+
+415 
+	`kbd_intr
+();
+
+418 if (
+cons
+.
+rpos
+ != cons.
+wpos
+) {
+
+419 
+c
+ = 
+cons
+.
+buf
+[cons.
+rpos
+++];
+
+420 if (
+cons
+.
+rpos
+ == 
+CONSBUFSIZE
+)
+
+421 
+cons
+.
+rpos
+ = 0;
+
+422 return 
+c
+;
+
+425 
+	}
+}
+
+429 
+	$cons_putc
+(int 
+c
+)
+
+431 
+	`serial_putc
+(
+c
+);
+
+432 
+	`lpt_putc
+(
+c
+);
+
+433 
+	`cga_putc
+(
+c
+);
+
+434 
+	}
+}
+
+438 
+	$cons_init
+(void)
+
+440 
+	`cga_init
+();
+
+441 
+	`kbd_init
+();
+
+442 
+	`serial_init
+();
+
+444 if (!
+serial_exists
+)
+
+445 
+	`cprintf
+("Serial port does not exist!\n");
+
+446 
+	}
+}
+
+452 
+	$cputchar
+(int 
+c
+)
+
+454 
+	`cons_putc
+(
+c
+);
+
+455 
+	}
+}
+
+458 
+	$getchar
+(void)
+
+460 int 
+c
+;
+
+462 while ((
+c
+ = 
+	`cons_getc
+()) == 0)
+
+464 return 
+c
+;
+
+465 
+	}
+}
+
+468 
+	$iscons
+(int 
+fdnum
+)
+
+472 
+	}
+}
+
+	@kern/console.h
+
+3 #ifndef 
+_CONSOLE_H_
+
+
+4 #define 
+	#_CONSOLE_H_
+
+
+	)
+
+5 #ifndef 
+JOS_KERNEL
+
+
+9 #include 
+	~<inc/types.h
+>
+
+11 #define 
+	#MONO_BASE
+ 0x3B4
+
+	)
+
+12 #define 
+	#MONO_BUF
+ 0xB0000
+
+	)
+
+13 #define 
+	#CGA_BASE
+ 0x3D4
+
+	)
+
+14 #define 
+	#CGA_BUF
+ 0xB8000
+
+	)
+
+16 #define 
+	#CRT_ROWS
+ 25
+
+	)
+
+17 #define 
+	#CRT_COLS
+ 80
+
+	)
+
+18 #define 
+	#CRT_SIZE
+ (
+CRT_ROWS
+ * 
+CRT_COLS
+)
+
+	)
+
+20 void 
+cons_init
+(void);
+
+21 int 
+cons_getc
+(void);
+
+23 void 
+kbd_intr
+(void);
+
+24 void 
+serial_intr
+(void);
+
+	@kern/entrypgdir.c
+
+1 #include 
+	~<inc/mmu.h
+>
+
+2 #include 
+	~<inc/memlayout.h
+>
+
+4 
+pte_t
+ 
+	gentry_pgtable
+[
+NPTENTRIES
+];
+
+20 
+__attribute__
+((
+	$__aligned__
+(
+PGSIZE
+)))
+
+21 
+pde_t
+ 
+entry_pgdir
+[
+NPDENTRIES
+] = {
+
+24 = ((
+uintptr_t
+)
+entry_pgtable
+ - 
+KERNBASE
+) + 
+PTE_P
+,
+
+26 [
+KERNBASE
+>>
+PDXSHIFT
+]
+
+27 = ((
+uintptr_t
+)
+entry_pgtable
+ - 
+KERNBASE
+) + 
+PTE_P
+ + 
+PTE_W
+
+
+28 
+	}
+};
+
+32 
+__attribute__
+((
+	$__aligned__
+(
+PGSIZE
+)))
+
+33 
+pte_t
+ 
+entry_pgtable
+[
+NPTENTRIES
+] = {
+
+34 0x000000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+35 0x001000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+36 0x002000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+37 0x003000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+38 0x004000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+39 0x005000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+40 0x006000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+41 0x007000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+42 0x008000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+43 0x009000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+44 0x00a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+45 0x00b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+46 0x00c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+47 0x00d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+48 0x00e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+49 0x00f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+50 0x010000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+51 0x011000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+52 0x012000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+53 0x013000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+54 0x014000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+55 0x015000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+56 0x016000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+57 0x017000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+58 0x018000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+59 0x019000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+60 0x01a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+61 0x01b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+62 0x01c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+63 0x01d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+64 0x01e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+65 0x01f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+66 0x020000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+67 0x021000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+68 0x022000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+69 0x023000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+70 0x024000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+71 0x025000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+72 0x026000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+73 0x027000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+74 0x028000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+75 0x029000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+76 0x02a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+77 0x02b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+78 0x02c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+79 0x02d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+80 0x02e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+81 0x02f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+82 0x030000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+83 0x031000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+84 0x032000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+85 0x033000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+86 0x034000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+87 0x035000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+88 0x036000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+89 0x037000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+90 0x038000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+91 0x039000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+92 0x03a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+93 0x03b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+94 0x03c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+95 0x03d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+96 0x03e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+97 0x03f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+98 0x040000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+99 0x041000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+100 0x042000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+101 0x043000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+102 0x044000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+103 0x045000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+104 0x046000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+105 0x047000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+106 0x048000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+107 0x049000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+108 0x04a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+109 0x04b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+110 0x04c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+111 0x04d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+112 0x04e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+113 0x04f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+114 0x050000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+115 0x051000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+116 0x052000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+117 0x053000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+118 0x054000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+119 0x055000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+120 0x056000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+121 0x057000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+122 0x058000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+123 0x059000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+124 0x05a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+125 0x05b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+126 0x05c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+127 0x05d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+128 0x05e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+129 0x05f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+130 0x060000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+131 0x061000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+132 0x062000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+133 0x063000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+134 0x064000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+135 0x065000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+136 0x066000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+137 0x067000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+138 0x068000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+139 0x069000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+140 0x06a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+141 0x06b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+142 0x06c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+143 0x06d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+144 0x06e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+145 0x06f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+146 0x070000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+147 0x071000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+148 0x072000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+149 0x073000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+150 0x074000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+151 0x075000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+152 0x076000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+153 0x077000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+154 0x078000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+155 0x079000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+156 0x07a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+157 0x07b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+158 0x07c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+159 0x07d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+160 0x07e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+161 0x07f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+162 0x080000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+163 0x081000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+164 0x082000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+165 0x083000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+166 0x084000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+167 0x085000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+168 0x086000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+169 0x087000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+170 0x088000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+171 0x089000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+172 0x08a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+173 0x08b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+174 0x08c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+175 0x08d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+176 0x08e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+177 0x08f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+178 0x090000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+179 0x091000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+180 0x092000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+181 0x093000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+182 0x094000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+183 0x095000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+184 0x096000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+185 0x097000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+186 0x098000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+187 0x099000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+188 0x09a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+189 0x09b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+190 0x09c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+191 0x09d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+192 0x09e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+193 0x09f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+194 0x0a0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+195 0x0a1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+196 0x0a2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+197 0x0a3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+198 0x0a4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+199 0x0a5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+200 0x0a6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+201 0x0a7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+202 0x0a8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+203 0x0a9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+204 0x0aa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+205 0x0ab000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+206 0x0ac000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+207 0x0ad000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+208 0x0ae000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+209 0x0af000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+210 0x0b0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+211 0x0b1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+212 0x0b2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+213 0x0b3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+214 0x0b4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+215 0x0b5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+216 0x0b6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+217 0x0b7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+218 0x0b8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+219 0x0b9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+220 0x0ba000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+221 0x0bb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+222 0x0bc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+223 0x0bd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+224 0x0be000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+225 0x0bf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+226 0x0c0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+227 0x0c1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+228 0x0c2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+229 0x0c3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+230 0x0c4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+231 0x0c5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+232 0x0c6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+233 0x0c7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+234 0x0c8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+235 0x0c9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+236 0x0ca000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+237 0x0cb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+238 0x0cc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+239 0x0cd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+240 0x0ce000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+241 0x0cf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+242 0x0d0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+243 0x0d1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+244 0x0d2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+245 0x0d3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+246 0x0d4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+247 0x0d5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+248 0x0d6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+249 0x0d7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+250 0x0d8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+251 0x0d9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+252 0x0da000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+253 0x0db000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+254 0x0dc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+255 0x0dd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+256 0x0de000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+257 0x0df000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+258 0x0e0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+259 0x0e1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+260 0x0e2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+261 0x0e3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+262 0x0e4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+263 0x0e5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+264 0x0e6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+265 0x0e7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+266 0x0e8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+267 0x0e9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+268 0x0ea000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+269 0x0eb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+270 0x0ec000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+271 0x0ed000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+272 0x0ee000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+273 0x0ef000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+274 0x0f0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+275 0x0f1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+276 0x0f2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+277 0x0f3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+278 0x0f4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+279 0x0f5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+280 0x0f6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+281 0x0f7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+282 0x0f8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+283 0x0f9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+284 0x0fa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+285 0x0fb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+286 0x0fc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+287 0x0fd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+288 0x0fe000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+289 0x0ff000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+290 0x100000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+291 0x101000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+292 0x102000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+293 0x103000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+294 0x104000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+295 0x105000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+296 0x106000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+297 0x107000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+298 0x108000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+299 0x109000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+300 0x10a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+301 0x10b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+302 0x10c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+303 0x10d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+304 0x10e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+305 0x10f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+306 0x110000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+307 0x111000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+308 0x112000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+309 0x113000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+310 0x114000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+311 0x115000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+312 0x116000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+313 0x117000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+314 0x118000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+315 0x119000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+316 0x11a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+317 0x11b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+318 0x11c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+319 0x11d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+320 0x11e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+321 0x11f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+322 0x120000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+323 0x121000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+324 0x122000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+325 0x123000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+326 0x124000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+327 0x125000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+328 0x126000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+329 0x127000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+330 0x128000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+331 0x129000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+332 0x12a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+333 0x12b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+334 0x12c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+335 0x12d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+336 0x12e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+337 0x12f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+338 0x130000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+339 0x131000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+340 0x132000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+341 0x133000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+342 0x134000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+343 0x135000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+344 0x136000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+345 0x137000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+346 0x138000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+347 0x139000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+348 0x13a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+349 0x13b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+350 0x13c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+351 0x13d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+352 0x13e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+353 0x13f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+354 0x140000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+355 0x141000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+356 0x142000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+357 0x143000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+358 0x144000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+359 0x145000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+360 0x146000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+361 0x147000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+362 0x148000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+363 0x149000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+364 0x14a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+365 0x14b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+366 0x14c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+367 0x14d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+368 0x14e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+369 0x14f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+370 0x150000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+371 0x151000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+372 0x152000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+373 0x153000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+374 0x154000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+375 0x155000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+376 0x156000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+377 0x157000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+378 0x158000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+379 0x159000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+380 0x15a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+381 0x15b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+382 0x15c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+383 0x15d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+384 0x15e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+385 0x15f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+386 0x160000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+387 0x161000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+388 0x162000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+389 0x163000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+390 0x164000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+391 0x165000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+392 0x166000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+393 0x167000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+394 0x168000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+395 0x169000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+396 0x16a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+397 0x16b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+398 0x16c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+399 0x16d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+400 0x16e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+401 0x16f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+402 0x170000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+403 0x171000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+404 0x172000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+405 0x173000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+406 0x174000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+407 0x175000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+408 0x176000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+409 0x177000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+410 0x178000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+411 0x179000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+412 0x17a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+413 0x17b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+414 0x17c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+415 0x17d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+416 0x17e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+417 0x17f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+418 0x180000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+419 0x181000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+420 0x182000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+421 0x183000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+422 0x184000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+423 0x185000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+424 0x186000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+425 0x187000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+426 0x188000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+427 0x189000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+428 0x18a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+429 0x18b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+430 0x18c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+431 0x18d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+432 0x18e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+433 0x18f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+434 0x190000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+435 0x191000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+436 0x192000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+437 0x193000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+438 0x194000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+439 0x195000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+440 0x196000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+441 0x197000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+442 0x198000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+443 0x199000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+444 0x19a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+445 0x19b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+446 0x19c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+447 0x19d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+448 0x19e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+449 0x19f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+450 0x1a0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+451 0x1a1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+452 0x1a2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+453 0x1a3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+454 0x1a4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+455 0x1a5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+456 0x1a6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+457 0x1a7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+458 0x1a8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+459 0x1a9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+460 0x1aa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+461 0x1ab000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+462 0x1ac000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+463 0x1ad000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+464 0x1ae000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+465 0x1af000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+466 0x1b0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+467 0x1b1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+468 0x1b2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+469 0x1b3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+470 0x1b4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+471 0x1b5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+472 0x1b6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+473 0x1b7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+474 0x1b8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+475 0x1b9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+476 0x1ba000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+477 0x1bb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+478 0x1bc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+479 0x1bd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+480 0x1be000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+481 0x1bf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+482 0x1c0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+483 0x1c1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+484 0x1c2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+485 0x1c3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+486 0x1c4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+487 0x1c5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+488 0x1c6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+489 0x1c7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+490 0x1c8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+491 0x1c9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+492 0x1ca000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+493 0x1cb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+494 0x1cc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+495 0x1cd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+496 0x1ce000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+497 0x1cf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+498 0x1d0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+499 0x1d1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+500 0x1d2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+501 0x1d3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+502 0x1d4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+503 0x1d5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+504 0x1d6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+505 0x1d7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+506 0x1d8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+507 0x1d9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+508 0x1da000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+509 0x1db000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+510 0x1dc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+511 0x1dd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+512 0x1de000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+513 0x1df000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+514 0x1e0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+515 0x1e1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+516 0x1e2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+517 0x1e3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+518 0x1e4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+519 0x1e5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+520 0x1e6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+521 0x1e7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+522 0x1e8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+523 0x1e9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+524 0x1ea000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+525 0x1eb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+526 0x1ec000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+527 0x1ed000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+528 0x1ee000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+529 0x1ef000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+530 0x1f0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+531 0x1f1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+532 0x1f2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+533 0x1f3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+534 0x1f4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+535 0x1f5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+536 0x1f6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+537 0x1f7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+538 0x1f8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+539 0x1f9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+540 0x1fa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+541 0x1fb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+542 0x1fc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+543 0x1fd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+544 0x1fe000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+545 0x1ff000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+546 0x200000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+547 0x201000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+548 0x202000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+549 0x203000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+550 0x204000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+551 0x205000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+552 0x206000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+553 0x207000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+554 0x208000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+555 0x209000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+556 0x20a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+557 0x20b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+558 0x20c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+559 0x20d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+560 0x20e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+561 0x20f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+562 0x210000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+563 0x211000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+564 0x212000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+565 0x213000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+566 0x214000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+567 0x215000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+568 0x216000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+569 0x217000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+570 0x218000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+571 0x219000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+572 0x21a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+573 0x21b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+574 0x21c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+575 0x21d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+576 0x21e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+577 0x21f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+578 0x220000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+579 0x221000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+580 0x222000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+581 0x223000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+582 0x224000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+583 0x225000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+584 0x226000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+585 0x227000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+586 0x228000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+587 0x229000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+588 0x22a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+589 0x22b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+590 0x22c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+591 0x22d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+592 0x22e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+593 0x22f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+594 0x230000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+595 0x231000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+596 0x232000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+597 0x233000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+598 0x234000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+599 0x235000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+600 0x236000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+601 0x237000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+602 0x238000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+603 0x239000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+604 0x23a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+605 0x23b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+606 0x23c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+607 0x23d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+608 0x23e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+609 0x23f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+610 0x240000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+611 0x241000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+612 0x242000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+613 0x243000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+614 0x244000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+615 0x245000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+616 0x246000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+617 0x247000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+618 0x248000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+619 0x249000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+620 0x24a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+621 0x24b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+622 0x24c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+623 0x24d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+624 0x24e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+625 0x24f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+626 0x250000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+627 0x251000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+628 0x252000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+629 0x253000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+630 0x254000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+631 0x255000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+632 0x256000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+633 0x257000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+634 0x258000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+635 0x259000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+636 0x25a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+637 0x25b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+638 0x25c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+639 0x25d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+640 0x25e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+641 0x25f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+642 0x260000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+643 0x261000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+644 0x262000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+645 0x263000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+646 0x264000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+647 0x265000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+648 0x266000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+649 0x267000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+650 0x268000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+651 0x269000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+652 0x26a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+653 0x26b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+654 0x26c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+655 0x26d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+656 0x26e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+657 0x26f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+658 0x270000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+659 0x271000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+660 0x272000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+661 0x273000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+662 0x274000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+663 0x275000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+664 0x276000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+665 0x277000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+666 0x278000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+667 0x279000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+668 0x27a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+669 0x27b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+670 0x27c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+671 0x27d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+672 0x27e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+673 0x27f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+674 0x280000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+675 0x281000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+676 0x282000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+677 0x283000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+678 0x284000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+679 0x285000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+680 0x286000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+681 0x287000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+682 0x288000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+683 0x289000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+684 0x28a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+685 0x28b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+686 0x28c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+687 0x28d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+688 0x28e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+689 0x28f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+690 0x290000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+691 0x291000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+692 0x292000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+693 0x293000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+694 0x294000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+695 0x295000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+696 0x296000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+697 0x297000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+698 0x298000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+699 0x299000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+700 0x29a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+701 0x29b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+702 0x29c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+703 0x29d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+704 0x29e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+705 0x29f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+706 0x2a0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+707 0x2a1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+708 0x2a2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+709 0x2a3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+710 0x2a4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+711 0x2a5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+712 0x2a6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+713 0x2a7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+714 0x2a8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+715 0x2a9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+716 0x2aa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+717 0x2ab000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+718 0x2ac000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+719 0x2ad000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+720 0x2ae000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+721 0x2af000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+722 0x2b0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+723 0x2b1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+724 0x2b2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+725 0x2b3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+726 0x2b4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+727 0x2b5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+728 0x2b6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+729 0x2b7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+730 0x2b8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+731 0x2b9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+732 0x2ba000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+733 0x2bb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+734 0x2bc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+735 0x2bd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+736 0x2be000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+737 0x2bf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+738 0x2c0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+739 0x2c1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+740 0x2c2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+741 0x2c3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+742 0x2c4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+743 0x2c5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+744 0x2c6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+745 0x2c7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+746 0x2c8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+747 0x2c9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+748 0x2ca000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+749 0x2cb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+750 0x2cc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+751 0x2cd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+752 0x2ce000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+753 0x2cf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+754 0x2d0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+755 0x2d1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+756 0x2d2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+757 0x2d3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+758 0x2d4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+759 0x2d5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+760 0x2d6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+761 0x2d7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+762 0x2d8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+763 0x2d9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+764 0x2da000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+765 0x2db000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+766 0x2dc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+767 0x2dd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+768 0x2de000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+769 0x2df000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+770 0x2e0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+771 0x2e1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+772 0x2e2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+773 0x2e3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+774 0x2e4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+775 0x2e5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+776 0x2e6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+777 0x2e7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+778 0x2e8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+779 0x2e9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+780 0x2ea000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+781 0x2eb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+782 0x2ec000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+783 0x2ed000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+784 0x2ee000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+785 0x2ef000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+786 0x2f0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+787 0x2f1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+788 0x2f2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+789 0x2f3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+790 0x2f4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+791 0x2f5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+792 0x2f6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+793 0x2f7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+794 0x2f8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+795 0x2f9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+796 0x2fa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+797 0x2fb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+798 0x2fc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+799 0x2fd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+800 0x2fe000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+801 0x2ff000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+802 0x300000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+803 0x301000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+804 0x302000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+805 0x303000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+806 0x304000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+807 0x305000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+808 0x306000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+809 0x307000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+810 0x308000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+811 0x309000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+812 0x30a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+813 0x30b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+814 0x30c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+815 0x30d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+816 0x30e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+817 0x30f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+818 0x310000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+819 0x311000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+820 0x312000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+821 0x313000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+822 0x314000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+823 0x315000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+824 0x316000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+825 0x317000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+826 0x318000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+827 0x319000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+828 0x31a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+829 0x31b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+830 0x31c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+831 0x31d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+832 0x31e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+833 0x31f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+834 0x320000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+835 0x321000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+836 0x322000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+837 0x323000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+838 0x324000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+839 0x325000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+840 0x326000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+841 0x327000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+842 0x328000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+843 0x329000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+844 0x32a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+845 0x32b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+846 0x32c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+847 0x32d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+848 0x32e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+849 0x32f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+850 0x330000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+851 0x331000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+852 0x332000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+853 0x333000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+854 0x334000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+855 0x335000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+856 0x336000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+857 0x337000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+858 0x338000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+859 0x339000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+860 0x33a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+861 0x33b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+862 0x33c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+863 0x33d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+864 0x33e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+865 0x33f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+866 0x340000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+867 0x341000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+868 0x342000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+869 0x343000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+870 0x344000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+871 0x345000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+872 0x346000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+873 0x347000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+874 0x348000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+875 0x349000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+876 0x34a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+877 0x34b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+878 0x34c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+879 0x34d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+880 0x34e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+881 0x34f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+882 0x350000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+883 0x351000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+884 0x352000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+885 0x353000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+886 0x354000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+887 0x355000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+888 0x356000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+889 0x357000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+890 0x358000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+891 0x359000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+892 0x35a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+893 0x35b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+894 0x35c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+895 0x35d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+896 0x35e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+897 0x35f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+898 0x360000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+899 0x361000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+900 0x362000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+901 0x363000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+902 0x364000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+903 0x365000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+904 0x366000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+905 0x367000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+906 0x368000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+907 0x369000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+908 0x36a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+909 0x36b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+910 0x36c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+911 0x36d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+912 0x36e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+913 0x36f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+914 0x370000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+915 0x371000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+916 0x372000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+917 0x373000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+918 0x374000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+919 0x375000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+920 0x376000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+921 0x377000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+922 0x378000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+923 0x379000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+924 0x37a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+925 0x37b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+926 0x37c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+927 0x37d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+928 0x37e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+929 0x37f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+930 0x380000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+931 0x381000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+932 0x382000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+933 0x383000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+934 0x384000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+935 0x385000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+936 0x386000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+937 0x387000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+938 0x388000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+939 0x389000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+940 0x38a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+941 0x38b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+942 0x38c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+943 0x38d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+944 0x38e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+945 0x38f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+946 0x390000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+947 0x391000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+948 0x392000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+949 0x393000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+950 0x394000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+951 0x395000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+952 0x396000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+953 0x397000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+954 0x398000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+955 0x399000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+956 0x39a000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+957 0x39b000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+958 0x39c000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+959 0x39d000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+960 0x39e000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+961 0x39f000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+962 0x3a0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+963 0x3a1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+964 0x3a2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+965 0x3a3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+966 0x3a4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+967 0x3a5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+968 0x3a6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+969 0x3a7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+970 0x3a8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+971 0x3a9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+972 0x3aa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+973 0x3ab000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+974 0x3ac000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+975 0x3ad000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+976 0x3ae000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+977 0x3af000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+978 0x3b0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+979 0x3b1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+980 0x3b2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+981 0x3b3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+982 0x3b4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+983 0x3b5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+984 0x3b6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+985 0x3b7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+986 0x3b8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+987 0x3b9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+988 0x3ba000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+989 0x3bb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+990 0x3bc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+991 0x3bd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+992 0x3be000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+993 0x3bf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+994 0x3c0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+995 0x3c1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+996 0x3c2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+997 0x3c3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+998 0x3c4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+999 0x3c5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1000 0x3c6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1001 0x3c7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1002 0x3c8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1003 0x3c9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1004 0x3ca000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1005 0x3cb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1006 0x3cc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1007 0x3cd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1008 0x3ce000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1009 0x3cf000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1010 0x3d0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1011 0x3d1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1012 0x3d2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1013 0x3d3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1014 0x3d4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1015 0x3d5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1016 0x3d6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1017 0x3d7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1018 0x3d8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1019 0x3d9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1020 0x3da000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1021 0x3db000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1022 0x3dc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1023 0x3dd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1024 0x3de000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1025 0x3df000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1026 0x3e0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1027 0x3e1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1028 0x3e2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1029 0x3e3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1030 0x3e4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1031 0x3e5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1032 0x3e6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1033 0x3e7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1034 0x3e8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1035 0x3e9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1036 0x3ea000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1037 0x3eb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1038 0x3ec000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1039 0x3ed000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1040 0x3ee000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1041 0x3ef000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1042 0x3f0000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1043 0x3f1000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1044 0x3f2000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1045 0x3f3000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1046 0x3f4000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1047 0x3f5000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1048 0x3f6000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1049 0x3f7000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1050 0x3f8000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1051 0x3f9000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1052 0x3fa000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1053 0x3fb000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1054 0x3fc000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1055 0x3fd000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1056 0x3fe000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1057 0x3ff000 | 
+PTE_P
+ | 
+PTE_W
+,
+
+1058 
+	}
+};
+
+	@kern/init.c
+
+3 #include 
+	~<inc/stdio.h
+>
+
+4 #include 
+	~<inc/string.h
+>
+
+5 #include 
+	~<inc/assert.h
+>
+
+7 #include 
+	~<kern/monitor.h
+>
+
+8 #include 
+	~<kern/console.h
+>
+
+9 #include 
+	~<kern/pmap.h
+>
+
+10 #include 
+	~<kern/kclock.h
+>
+
+14 
+	$i386_init
+(void)
+
+16 extern char 
+edata
+[], 
+end
+[];
+
+21 
+	`memset
+(
+edata
+, 0, 
+end
+ - edata);
+
+25 
+	`cons_init
+();
+
+27 
+	`cprintf
+("6828 decimal is %o octal!\n", 6828);
+
+30 
+	`mem_init
+();
+
+34 
+	`monitor
+(
+NULL
+);
+
+35 
+	}
+}
+
+42 const char *
+	gpanicstr
+;
+
+49 
+	$_panic
+(const char *
+file
+, int 
+line
+, const char *
+fmt
+,...)
+
+51 
+va_list
+ 
+ap
+;
+
+53 if (
+panicstr
+)
+
+54 goto 
+dead
+;
+
+55 
+panicstr
+ = 
+fmt
+;
+
+58 
+__asm
+ 
+	`__volatile
+("cli; cld");
+
+60 
+	`va_start
+(
+ap
+, 
+fmt
+);
+
+61 
+	`cprintf
+("kernel panic at %s:%d: ", 
+file
+, 
+line
+);
+
+62 
+	`vcprintf
+(
+fmt
+, 
+ap
+);
+
+63 
+	`cprintf
+("\n");
+
+64 
+	`va_end
+(
+ap
+);
+
+66 
+dead
+:
+
+69 
+	`monitor
+(
+NULL
+);
+
+70 
+	}
+}
+
+74 
+	$_warn
+(const char *
+file
+, int 
+line
+, const char *
+fmt
+,...)
+
+76 
+va_list
+ 
+ap
+;
+
+78 
+	`va_start
+(
+ap
+, 
+fmt
+);
+
+79 
+	`cprintf
+("kernel warning at %s:%d: ", 
+file
+, 
+line
+);
+
+80 
+	`vcprintf
+(
+fmt
+, 
+ap
+);
+
+81 
+	`cprintf
+("\n");
+
+82 
+	`va_end
+(
+ap
+);
+
+83 
+	}
+}
+
+	@kern/kclock.c
+
+5 #include 
+	~<inc/x86.h
+>
+
+7 #include 
+	~<kern/kclock.h
+>
+
+11 
+	$mc146818_read
+(unsigned 
+reg
+)
+
+13 
+	`outb
+(
+IO_RTC
+, 
+reg
+);
+
+14 return 
+	`inb
+(
+IO_RTC
++1);
+
+15 
+	}
+}
+
+18 
+	$mc146818_write
+(unsigned 
+reg
+, unsigned 
+datum
+)
+
+20 
+	`outb
+(
+IO_RTC
+, 
+reg
+);
+
+21 
+	`outb
+(
+IO_RTC
++1, 
+datum
+);
+
+22 
+	}
+}
+
+	@kern/kclock.h
+
+3 #ifndef 
+JOS_KERN_KCLOCK_H
+
+
+4 #define 
+	#JOS_KERN_KCLOCK_H
+
+
+	)
+
+5 #ifndef 
+JOS_KERNEL
+
+
+9 #define 
+	#IO_RTC
+ 0x070
+
+	)
+
+11 #define 
+	#MC_NVRAM_START
+ 0xe
+
+	)
+
+12 #define 
+	#MC_NVRAM_SIZE
+ 50
+
+	)
+
+15 #define 
+	#NVRAM_BASELO
+ (
+MC_NVRAM_START
+ + 7)
+
+	)
+
+16 #define 
+	#NVRAM_BASEHI
+ (
+MC_NVRAM_START
+ + 8)
+
+	)
+
+19 #define 
+	#NVRAM_EXTLO
+ (
+MC_NVRAM_START
+ + 9)
+
+	)
+
+20 #define 
+	#NVRAM_EXTHI
+ (
+MC_NVRAM_START
+ + 10)
+
+	)
+
+23 #define 
+	#NVRAM_PEXTLO
+ (
+MC_NVRAM_START
+ + 34)
+
+	)
+
+24 #define 
+	#NVRAM_PEXTHI
+ (
+MC_NVRAM_START
+ + 35)
+
+	)
+
+27 #define 
+	#NVRAM_CENTURY
+ (
+MC_NVRAM_START
+ + 36)
+
+	)
+
+29 unsigned 
+mc146818_read
+(unsigned 
+reg
+);
+
+30 void 
+mc146818_write
+(unsigned 
+reg
+, unsigned 
+datum
+);
+
+	@kern/kdebug.c
+
+1 #include 
+	~<inc/stab.h
+>
+
+2 #include 
+	~<inc/string.h
+>
+
+3 #include 
+	~<inc/memlayout.h
+>
+
+4 #include 
+	~<inc/assert.h
+>
+
+6 #include 
+	~<kern/kdebug.h
+>
+
+8 extern const struct 
+Stab
+ 
+__STAB_BEGIN__
+[];
+
+9 extern const struct 
+Stab
+ 
+__STAB_END__
+[];
+
+10 extern const char 
+__STABSTR_BEGIN__
+[];
+
+11 extern const char 
+__STABSTR_END__
+[];
+
+51 
+	$stab_binsearch
+(const struct 
+Stab
+ *
+stabs
+, int *
+region_left
+, int *
+region_right
+,
+
+52 int 
+type
+, 
+uintptr_t
+ 
+addr
+)
+
+54 int 
+l
+ = *
+region_left
+, 
+r
+ = *
+region_right
+, 
+any_matches
+ = 0;
+
+56 while (
+l
+ <= 
+r
+) {
+
+57 int 
+true_m
+ = (
+l
+ + 
+r
+) / 2, 
+m
+ = true_m;
+
+60 while (
+m
+ >= 
+l
+ && 
+stabs
+[m].
+n_type
+ != 
+type
+)
+
+61 
+m
+--;
+
+62 if (
+m
+ < 
+l
+) {
+
+63 
+l
+ = 
+true_m
+ + 1;
+
+68 
+any_matches
+ = 1;
+
+69 if (
+stabs
+[
+m
+].
+n_value
+ < 
+addr
+) {
+
+70 *
+region_left
+ = 
+m
+;
+
+71 
+l
+ = 
+true_m
+ + 1;
+
+72 } else if (
+stabs
+[
+m
+].
+n_value
+ > 
+addr
+) {
+
+73 *
+region_right
+ = 
+m
+ - 1;
+
+74 
+r
+ = 
+m
+ - 1;
+
+78 *
+region_left
+ = 
+m
+;
+
+79 
+l
+ = 
+m
+;
+
+80 
+addr
+++;
+
+84 if (!
+any_matches
+)
+
+85 *
+region_right
+ = *
+region_left
+ - 1;
+
+88 for (
+l
+ = *
+region_right
+;
+
+89 
+l
+ > *
+region_left
+ && 
+stabs
+[l].
+n_type
+ != 
+type
+;
+
+90 
+l
+--)
+
+92 *
+region_left
+ = 
+l
+;
+
+94 
+	}
+}
+
+105 
+	$debuginfo_eip
+(
+uintptr_t
+ 
+addr
+, struct 
+Eipdebuginfo
+ *
+info
+)
+
+107 const struct 
+Stab
+ *
+stabs
+, *
+stab_end
+;
+
+108 const char *
+stabstr
+, *
+stabstr_end
+;
+
+109 int 
+lfile
+, 
+rfile
+, 
+lfun
+, 
+rfun
+, 
+lline
+, 
+rline
+;
+
+112 
+info
+->
+eip_file
+ = "<unknown>";
+
+113 
+info
+->
+eip_line
+ = 0;
+
+114 
+info
+->
+eip_fn_name
+ = "<unknown>";
+
+115 
+info
+->
+eip_fn_namelen
+ = 9;
+
+116 
+info
+->
+eip_fn_addr
+ = 
+addr
+;
+
+117 
+info
+->
+eip_fn_narg
+ = 0;
+
+120 if (
+addr
+ >= 
+ULIM
+) {
+
+121 
+stabs
+ = 
+__STAB_BEGIN__
+;
+
+122 
+stab_end
+ = 
+__STAB_END__
+;
+
+123 
+stabstr
+ = 
+__STABSTR_BEGIN__
+;
+
+124 
+stabstr_end
+ = 
+__STABSTR_END__
+;
+
+127 
+	`panic
+("User address");
+
+131 if (
+stabstr_end
+ <= 
+stabstr
+ || stabstr_end[-1] != 0)
+
+140 
+lfile
+ = 0;
+
+141 
+rfile
+ = (
+stab_end
+ - 
+stabs
+) - 1;
+
+142 
+	`stab_binsearch
+(
+stabs
+, &
+lfile
+, &
+rfile
+, 
+N_SO
+, 
+addr
+);
+
+143 if (
+lfile
+ == 0)
+
+148 
+lfun
+ = 
+lfile
+;
+
+149 
+rfun
+ = 
+rfile
+;
+
+150 
+	`stab_binsearch
+(
+stabs
+, &
+lfun
+, &
+rfun
+, 
+N_FUN
+, 
+addr
+);
+
+152 if (
+lfun
+ <= 
+rfun
+) {
+
+155 if (
+stabs
+[
+lfun
+].
+n_strx
+ < 
+stabstr_end
+ - 
+stabstr
+)
+
+156 
+info
+->
+eip_fn_name
+ = 
+stabstr
+ + 
+stabs
+[
+lfun
+].
+n_strx
+;
+
+157 
+info
+->
+eip_fn_addr
+ = 
+stabs
+[
+lfun
+].
+n_value
+;
+
+158 
+addr
+ -= 
+info
+->
+eip_fn_addr
+;
+
+160 
+lline
+ = 
+lfun
+;
+
+161 
+rline
+ = 
+rfun
+;
+
+165 
+info
+->
+eip_fn_addr
+ = 
+addr
+;
+
+166 
+lline
+ = 
+lfile
+;
+
+167 
+rline
+ = 
+rfile
+;
+
+170 
+info
+->
+eip_fn_namelen
+ = 
+	`strfind
+(info->
+eip_fn_name
+, ':') - info->eip_fn_name;
+
+183 
+	`stab_binsearch
+(
+stabs
+, &
+lline
+, &
+rline
+, 
+N_SLINE
+, 
+addr
+);
+
+184 
+info
+->
+eip_line
+ = 
+stabs
+[
+lline
+].
+n_desc
+;
+
+191 while (
+lline
+ >= 
+lfile
+
+
+192 && 
+stabs
+[
+lline
+].
+n_type
+ != 
+N_SOL
+
+
+193 && (
+stabs
+[
+lline
+].
+n_type
+ != 
+N_SO
+ || !stabs[lline].
+n_value
+))
+
+194 
+lline
+--;
+
+195 if (
+lline
+ >= 
+lfile
+ && 
+stabs
+[lline].
+n_strx
+ < 
+stabstr_end
+ - 
+stabstr
+)
+
+196 
+info
+->
+eip_file
+ = 
+stabstr
+ + 
+stabs
+[
+lline
+].
+n_strx
+;
+
+201 if (
+lfun
+ < 
+rfun
+)
+
+202 for (
+lline
+ = 
+lfun
+ + 1;
+
+203 
+lline
+ < 
+rfun
+ && 
+stabs
+[lline].
+n_type
+ == 
+N_PSYM
+;
+
+204 
+lline
+++)
+
+205 
+info
+->
+eip_fn_narg
+++;
+
+208 
+	}
+}
+
+	@kern/kdebug.h
+
+1 #ifndef 
+JOS_KERN_KDEBUG_H
+
+
+2 #define 
+	#JOS_KERN_KDEBUG_H
+
+
+	)
+
+4 #include 
+	~<inc/types.h
+>
+
+7 struct 
+	sEipdebuginfo
+ {
+
+8 const char *
+	meip_file
+;
+
+9 int 
+	meip_line
+;
+
+11 const char *
+	meip_fn_name
+;
+
+13 int 
+	meip_fn_namelen
+;
+
+14 
+uintptr_t
+ 
+	meip_fn_addr
+;
+
+15 int 
+	meip_fn_narg
+;
+
+18 int 
+debuginfo_eip
+(
+uintptr_t
+ 
+eip
+, struct 
+Eipdebuginfo
+ *
+info
+);
+
+	@kern/monitor.c
+
+4 #include 
+	~<inc/stdio.h
+>
+
+5 #include 
+	~<inc/string.h
+>
+
+6 #include 
+	~<inc/memlayout.h
+>
+
+7 #include 
+	~<inc/assert.h
+>
+
+8 #include 
+	~<inc/x86.h
+>
+
+10 #include 
+	~<kern/console.h
+>
+
+11 #include 
+	~<kern/monitor.h
+>
+
+12 #include 
+	~<kern/kdebug.h
+>
+
+14 #define 
+	#CMDBUF_SIZE
+ 80
+
+15 
+
+	)
+
+17 struct 
+	sCommand
+ {
+
+18 const char *
+	mname
+;
+
+19 const char *
+	mdesc
+;
+
+21 int (*
+	mfunc
+)(int 
+	margc
+, char** 
+	margv
+, struct 
+Trapframe
+* 
+	mtf
+);
+
+24 static struct 
+Command
+ 
+	gcommands
+[] = {
+
+25 { "help", "Display this list of commands", 
+mon_help
+ },
+
+26 { "kerninfo", "Display information about the kernel", 
+mon_kerninfo
+ },
+
+27 { "backtrace", "Show backtrace", 
+mon_backtrace
+ },
+
+29 #define 
+	#NCOMMANDS
+ (sizeof(
+commands
+)/sizeof(commands[0]))
+
+	)
+
+34 
+	$mon_help
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+)
+
+36 int 
+i
+;
+
+38 for (
+i
+ = 0; i < 
+NCOMMANDS
+; i++)
+
+39 
+	`cprintf
+("%s - %s\n", 
+commands
+[
+i
+].
+name
+, commands[i].
+desc
+);
+
+41 
+	}
+}
+
+44 
+	$mon_kerninfo
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+)
+
+46 extern char 
+_start
+[], 
+entry
+[], 
+etext
+[], 
+edata
+[], 
+end
+[];
+
+48 
+	`cprintf
+("Special kernel symbols:\n");
+
+49 
+	`cprintf
+(" _start %08x (phys)\n", 
+_start
+);
+
+50 
+	`cprintf
+(" entry %08x (virt) %08x (phys)\n", 
+entry
+, entry - 
+KERNBASE
+);
+
+51 
+	`cprintf
+(" etext %08x (virt) %08x (phys)\n", 
+etext
+, etext - 
+KERNBASE
+);
+
+52 
+	`cprintf
+(" edata %08x (virt) %08x (phys)\n", 
+edata
+, edata - 
+KERNBASE
+);
+
+53 
+	`cprintf
+(" end %08x (virt) %08x (phys)\n", 
+end
+, end - 
+KERNBASE
+);
+
+54 
+	`cprintf
+("Kernel executable memory footprint: %dKB\n",
+
+55 
+	`ROUNDUP
+(
+end
+ - 
+entry
+, 1024) / 1024);
+
+57 
+	}
+}
+
+60 
+	$mon_backtrace
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+)
+
+62 
+uint32_t
+ 
+base
+ = 
+	`read_ebp
+();
+
+63 
+uint8_t
+ 
+i
+ = 0;
+
+64 struct 
+Eipdebuginfo
+ 
+info
+ = {0};
+
+66 
+	`cprintf
+("Stack backtrace:\n");
+
+67 while (
+base
+) {
+
+68 
+	`debuginfo_eip
+(*((
+uint32_t
+*)
+base
+ + 1), &
+info
+);
+
+69 
+	`cprintf
+("ebp %08x ", 
+base
+);
+
+70 
+	`cprintf
+("eip %08x args", *((
+uint32_t
+*)
+base
+ + 1));
+
+71 for (
+i
+ = 0; i < 5; ++i)
+
+72 
+	`cprintf
+(" %08x ", *((
+uint32_t
+*)
+base
+ + 2 + 
+i
+));
+
+73 
+	`cprintf
+("\n");
+
+74 
+	`cprintf
+("%s:%d: %.*s+%d\n", 
+info
+.
+eip_file
+, info.
+eip_line
+,
+
+75 
+info
+.
+eip_fn_namelen
+, info.
+eip_fn_name
+,
+
+76 (*((
+uint32_t
+*)
+base
++1) - 
+info
+.
+eip_fn_addr
+));
+
+77 
+base
+ = *((
+uint32_t
+*)(base));
+
+80 
+	}
+}
+
+84 #define 
+	#WHITESPACE
+ "\t\r\n "
+
+	)
+
+85 #define 
+	#MAXARGS
+ 16
+
+	)
+
+88 
+	$runcmd
+(char *
+buf
+, struct 
+Trapframe
+ *
+tf
+)
+
+90 int 
+argc
+;
+
+91 char *
+argv
+[
+MAXARGS
+];
+
+92 int 
+i
+;
+
+95 
+argc
+ = 0;
+
+96 
+argv
+[
+argc
+] = 0;
+
+99 while (*
+buf
+ && 
+	`strchr
+(
+WHITESPACE
+, *buf))
+
+100 *
+buf
+++ = 0;
+
+101 if (*
+buf
+ == 0)
+
+105 if (
+argc
+ == 
+MAXARGS
+-1) {
+
+106 
+	`cprintf
+("Too many arguments (max %d)\n", 
+MAXARGS
+);
+
+109 
+argv
+[
+argc
+++] = 
+buf
+;
+
+110 while (*
+buf
+ && !
+	`strchr
+(
+WHITESPACE
+, *buf))
+
+111 
+buf
+++;
+
+113 
+argv
+[
+argc
+] = 0;
+
+116 if (
+argc
+ == 0)
+
+118 for (
+i
+ = 0; i < 
+NCOMMANDS
+; i++) {
+
+119 if (
+	`strcmp
+(
+argv
+[0], 
+commands
+[
+i
+].
+name
+) == 0)
+
+120 return 
+commands
+[
+i
+].
+	`func
+(
+argc
+, 
+argv
+, 
+tf
+);
+
+122 
+	`cprintf
+("Unknown command '%s'\n", 
+argv
+[0]);
+
+124 
+	}
+}
+
+127 
+	$monitor
+(struct 
+Trapframe
+ *
+tf
+)
+
+129 char *
+buf
+;
+
+131 
+	`cprintf
+("Welcome to the JOS kernel monitor!\n");
+
+132 
+	`cprintf
+("Type 'help' for a list of commands.\n");
+
+136 
+buf
+ = 
+	`readline
+("K> ");
+
+137 if (
+buf
+ != 
+NULL
+)
+
+138 if (
+	`runcmd
+(
+buf
+, 
+tf
+) < 0)
+
+141 
+	}
+}
+
+	@kern/monitor.h
+
+1 #ifndef 
+JOS_KERN_MONITOR_H
+
+
+2 #define 
+	#JOS_KERN_MONITOR_H
+
+
+	)
+
+3 #ifndef 
+JOS_KERNEL
+
+
+7 struct 
+	gTrapframe
+;
+
+12 void 
+monitor
+(struct 
+Trapframe
+ *
+tf
+);
+
+15 int 
+mon_help
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+);
+
+16 int 
+mon_kerninfo
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+);
+
+17 int 
+mon_backtrace
+(int 
+argc
+, char **
+argv
+, struct 
+Trapframe
+ *
+tf
+);
+
+	@kern/pmap.c
+
+3 #include 
+	~<inc/x86.h
+>
+
+4 #include 
+	~<inc/mmu.h
+>
+
+5 #include 
+	~<inc/error.h
+>
+
+6 #include 
+	~<inc/string.h
+>
+
+7 #include 
+	~<inc/assert.h
+>
+
+9 #include 
+	~<kern/pmap.h
+>
+
+10 #include 
+	~<kern/kclock.h
+>
+
+13 
+size_t
+ 
+	gnpages
+;
+
+14 
+size_t
+ 
+	gpages_left
+;
+
+15 static 
+size_t
+ 
+	gnpages_basemem
+;
+
+18 
+pde_t
+ *
+	gkern_pgdir
+;
+
+19 struct 
+PageInfo
+ *
+	gpages
+;
+
+20 static struct 
+PageInfo
+ *
+	gpage_free_list
+;
+
+28 
+	$nvram_read
+(int 
+r
+)
+
+30 return 
+	`mc146818_read
+(
+r
+) | (mc146818_read(r + 1) << 8);
+
+31 
+	}
+}
+
+34 
+	$i386_detect_memory
+(void)
+
+36 
+size_t
+ 
+npages_extmem
+;
+
+40 
+npages_basemem
+ = (
+	`nvram_read
+(
+NVRAM_BASELO
+) * 1024) / 
+PGSIZE
+;
+
+41 
+	`cprintf
+("npages_basemem : %u\n", 
+npages_basemem
+);
+
+42 
+npages_extmem
+ = (
+	`nvram_read
+(
+NVRAM_EXTLO
+) * 1024) / 
+PGSIZE
+;
+
+46 if (
+npages_extmem
+)
+
+47 
+npages
+ = (
+EXTPHYSMEM
+ / 
+PGSIZE
+) + 
+npages_extmem
+;
+
+49 
+npages
+ = 
+npages_basemem
+;
+
+51 
+pages_left
+ = 
+npages
+;
+
+53 
+	`cprintf
+("Physical memory: %uK available, base = %uK, extended = %uK\n",
+
+54 
+npages
+ * 
+PGSIZE
+ / 1024,
+
+55 
+npages_basemem
+ * 
+PGSIZE
+ / 1024,
+
+56 
+npages_extmem
+ * 
+PGSIZE
+ / 1024);
+
+57 
+	}
+}
+
+64 static void 
+boot_map_region
+(
+pde_t
+ *
+pgdir
+, 
+uintptr_t
+ 
+va
+, 
+size_t
+ 
+size
+, 
+physaddr_t
+ 
+pa
+, int 
+perm
+);
+
+65 static void 
+check_page_free_list
+(
+bool
+ 
+only_low_memory
+);
+
+66 static void 
+check_page_alloc
+(void);
+
+67 static void 
+check_kern_pgdir
+(void);
+
+68 static 
+physaddr_t
+ 
+check_va2pa
+(
+pde_t
+ *
+pgdir
+, 
+uintptr_t
+ 
+va
+);
+
+69 static void 
+check_page
+(void);
+
+70 static void 
+check_page_installed_pgdir
+(void);
+
+85 
+	$boot_alloc
+(
+uint32_t
+ 
+n
+)
+
+87 
+	`cprintf
+("BOOT_ALLOC: called with %u needed bytes\n", 
+n
+);
+
+88 static char *
+nextfree
+;
+
+89 char *
+result
+;
+
+90 
+uint32_t
+ 
+pages_needed
+ = 1;
+
+91 
+uint32_t
+ 
+cmp_size
+ = 
+PGSIZE
+;
+
+98 if (!
+nextfree
+) {
+
+99 extern char 
+end
+[];
+
+100 
+nextfree
+ = 
+	`ROUNDUP
+((char *) 
+end
+, 
+PGSIZE
+);
+
+103 if (
+n
+ == 0) {
+
+104 
+	`cprintf
+("BOOT_ALLOC: Returning address of next free page: %p"
+
+105 "\n", 
+nextfree
+);
+
+106 return (void *)
+nextfree
+;
+
+109 while (
+n
+ > 
+cmp_size
+) {
+
+110 ++
+pages_needed
+;
+
+111 
+cmp_size
+ += 
+PGSIZE
+;
+
+115 if (
+pages_needed
+ > 
+pages_left
+)
+
+116 
+	`panic
+("Kernel ran out of free pages. Fatal error.\n");
+
+118 
+pages_left
+ -= 
+pages_needed
+;
+
+119 
+result
+ = 
+nextfree
+;
+
+126 
+nextfree
+ = 
+	`ROUNDUP
+((char *)(
+result
+ + 
+n
+), 
+PGSIZE
+);
+
+128 
+	`cprintf
+("BOOT_ALLOC: bytes needed: %u, pages needed: %u, pages left"
+
+130 " free page: %p\n", 
+n
+, 
+pages_needed
+, 
+pages_left
+, 
+result
+, 
+nextfree
+);
+
+132 return 
+result
+;
+
+133 
+	}
+}
+
+145 
+	$mem_init
+(void)
+
+147 
+uint32_t
+ 
+cr0
+;
+
+148 
+size_t
+ 
+n
+;
+
+151 
+	`i386_detect_memory
+();
+
+158 
+kern_pgdir
+ = (
+pde_t
+ *) 
+	`boot_alloc
+(
+PGSIZE
+);
+
+159 
+	`memset
+(
+kern_pgdir
+, 0, 
+PGSIZE
+);
+
+168 
+kern_pgdir
+[
+	`PDX
+(
+UVPT
+)] = 
+	`PADDR
+(kern_pgdir) | 
+PTE_U
+ | 
+PTE_P
+;
+
+177 
+pages
+ = (struct 
+PageInfo
+ *)
+	`boot_alloc
+(
+npages
+ * sizeof(struct PageInfo));
+
+179 for(
+n
+ = 0; n < 
+npages
+; ++n) {
+
+180 
+	`memset
+(&
+pages
+[
+n
+], 0, sizeof(struct 
+PageInfo
+));
+
+190 
+	`page_init
+();
+
+192 
+	`check_page_free_list
+(1);
+
+193 
+	`check_page_alloc
+();
+
+195 
+	`check_page
+();
+
+196 
+	`panic
+("not yet");
+
+231 
+	`check_kern_pgdir
+();
+
+240 
+	`lcr3
+(
+	`PADDR
+(
+kern_pgdir
+));
+
+242 
+	`check_page_free_list
+(0);
+
+246 
+cr0
+ = 
+	`rcr0
+();
+
+247 
+cr0
+ |= 
+CR0_PE
+|
+CR0_PG
+|
+CR0_AM
+|
+CR0_WP
+|
+CR0_NE
+|
+CR0_MP
+;
+
+248 
+cr0
+ &= ~(
+CR0_TS
+|
+CR0_EM
+);
+
+249 
+	`lcr0
+(
+cr0
+);
+
+252 
+	`check_page_installed_pgdir
+();
+
+253 
+	}
+}
+
+268 
+	$page_init
+(void)
+
+287 
+size_t
+ 
+i
+;
+
+289 
+size_t
+ 
+kernel_phys_page_end
+ = 1024;
+
+291 
+pages
+[0].
+pp_ref
+ = 1;
+
+293 
+page_free_list
+ = &
+pages
+[1];
+
+296 for (
+i
+ = 2; i < 
+npages_basemem
+; i++) {
+
+297 
+pages
+[
+i
+].
+pp_ref
+ = 0;
+
+298 
+pages
+[
+i
+].
+pp_link
+ = 
+page_free_list
+;
+
+299 
+page_free_list
+ = &
+pages
+[
+i
+];
+
+304 for (
+i
+ = 
+EXTPHYSMEM
+; i < 
+kernel_phys_page_end
+; i++) {
+
+305 
+pages
+[
+i
+].
+pp_ref
+ = 1;
+
+306 
+pages
+[
+i
+].
+pp_link
+ = 
+NULL
+;
+
+310 for (
+i
+ = 
+kernel_phys_page_end
+; i < 
+npages
+; ++i) {
+
+311 
+pages
+[
+i
+].
+pp_ref
+ = 0;
+
+312 
+pages
+[
+i
+].
+pp_link
+ = 
+page_free_list
+;
+
+313 
+page_free_list
+ = &
+pages
+[
+i
+];
+
+315 
+	}
+}
+
+329 struct 
+PageInfo
+ *
+
+330 
+	$page_alloc
+(int 
+alloc_flags
+)
+
+333 if (
+page_free_list
+ == 
+NULL
+)
+
+334 return 
+NULL
+;
+
+335 struct 
+PageInfo
+ *
+p
+ = 
+page_free_list
+;
+
+336 
+page_free_list
+ = 
+p
+->
+pp_link
+;
+
+337 
+p
+->
+pp_link
+ = 
+NULL
+;
+
+339 if (
+alloc_flags
+ & 
+ALLOC_ZERO
+)
+
+340 
+	`memset
+(
+	`page2kva
+(
+p
+), '\0', 
+PGSIZE
+);
+
+341 return 
+p
+;
+
+342 
+	}
+}
+
+349 
+	$page_free
+(struct 
+PageInfo
+ *
+pp
+)
+
+354 if (
+pp
+->
+pp_ref
+ != 0 || pp->
+pp_link
+ != 
+NULL
+)
+
+355 
+	`panic
+("page is still in use.");
+
+356 
+pp
+->
+pp_link
+ = 
+page_free_list
+;
+
+357 
+page_free_list
+ = 
+pp
+;
+
+358 
+	}
+}
+
+365 
+	$page_decref
+(struct 
+PageInfo
+* 
+pp
+)
+
+367 if (--
+pp
+->
+pp_ref
+ == 0)
+
+368 
+	`page_free
+(
+pp
+);
+
+369 
+	}
+}
+
+394 
+pte_t
+ *
+
+395 
+	$pgdir_walk
+(
+pde_t
+ *
+pgdir
+, const void *
+va
+, int 
+create
+)
+
+397 struct 
+PageInfo
+ *
+p
+;
+
+398 
+pde_t
+ *
+pde
+ = (pde_t *)
+pgdir
+[
+	`PDX
+(
+va
+)];
+
+399 if (!
+pde
+) {
+
+400 if (!
+create
+)
+
+401 return 
+NULL
+;
+
+403 
+p
+ = 
+	`page_alloc
+(
+ALLOC_ZERO
+);
+
+404 if (!
+p
+)
+
+405 return 
+NULL
+;
+
+406 
+p
+->
+pp_ref
+ = 1;
+
+407 
+pgdir
+[
+	`PDX
+(
+va
+)] = 
+	`page2pa
+(
+p
+) | 
+PTE_P
+ | 
+PTE_W
+;
+
+409 return (
+pte_t
+ *)
+pde
+[
+	`PTX
+(
+va
+)];
+
+410 
+	}
+}
+
+424 
+	$boot_map_region
+(
+pde_t
+ *
+pgdir
+, 
+uintptr_t
+ 
+va
+, 
+size_t
+ 
+size
+, 
+physaddr_t
+ 
+pa
+, int 
+perm
+)
+
+427 
+size_t
+ 
+i
+;
+
+428 const void *
+vaddr
+;
+
+429 
+pte_t
+ *
+pte
+;
+
+430 for (
+i
+ = 0; i < 
+size
+ / 
+PGSIZE
+; ++i) {
+
+431 
+vaddr
+ = (const void *)(
+va
+ + 
+i
+ * 
+PGSIZE
+);
+
+432 
+pte
+ = 
+	`pgdir_walk
+(
+pgdir
+, 
+vaddr
+, 1);
+
+433 *
+pte
+ = (
+pa
+ + 
+i
+ * 
+PGSIZE
+) | 
+perm
+ | 
+PTE_P
+;
+
+435 
+	}
+}
+
+463 
+	$page_insert
+(
+pde_t
+ *
+pgdir
+, struct 
+PageInfo
+ *
+pp
+, void *
+va
+, int 
+perm
+)
+
+466 
+pte_t
+ *
+pte
+ = 
+	`pgdir_walk
+(
+pgdir
+, 
+va
+, 1);
+
+467 if (!
+pte
+)
+
+468 return -
+E_NO_MEM
+;
+
+469 
+pp
+->
+pp_ref
+++;
+
+470 if (*
+pte
+)
+
+471 
+	`page_remove
+(
+pgdir
+, 
+va
+);
+
+472 *
+pte
+ = 
+	`page2pa
+(
+pp
+) | 
+perm
+ | 
+PTE_P
+;
+
+474 
+	}
+}
+
+487 struct 
+PageInfo
+ *
+
+488 
+	$page_lookup
+(
+pde_t
+ *
+pgdir
+, void *
+va
+, 
+pte_t
+ **
+pte_store
+)
+
+491 
+pte_t
+ *
+pte
+ = 
+	`pgdir_walk
+(
+pgdir
+, 
+va
+, 0);
+
+492 if (!
+pte
+ || !(*pte))
+
+493 return 
+NULL
+;
+
+495 if (
+pte_store
+)
+
+496 *
+pte_store
+ = 
+pte
+;
+
+498 return 
+	`pa2page
+(*
+pte
+);
+
+499 
+	}
+}
+
+517 
+	$page_remove
+(
+pde_t
+ *
+pgdir
+, void *
+va
+)
+
+520 
+pte_t
+ *
+pte
+ = 
+NULL
+;
+
+521 struct 
+PageInfo
+ *
+p
+ = 
+NULL
+;
+
+522 
+p
+ = 
+	`page_lookup
+(
+pgdir
+, 
+va
+, &
+pte
+);
+
+523 if (!
+pte
+ || !
+p
+)
+
+525 
+	`page_decref
+(
+p
+);
+
+526 *
+pte
+ = 0;
+
+527 
+	`tlb_invalidate
+(
+pgdir
+, 
+va
+);
+
+528 
+	}
+}
+
+535 
+	$tlb_invalidate
+(
+pde_t
+ *
+pgdir
+, void *
+va
+)
+
+539 
+	`invlpg
+(
+va
+);
+
+540 
+	}
+}
+
+551 
+	$check_page_free_list
+(
+bool
+ 
+only_low_memory
+)
+
+553 struct 
+PageInfo
+ *
+pp
+;
+
+554 unsigned 
+pdx_limit
+ = 
+only_low_memory
+ ? 1 : 
+NPDENTRIES
+;
+
+555 int 
+nfree_basemem
+ = 0, 
+nfree_extmem
+ = 0;
+
+556 char *
+first_free_page
+;
+
+558 if (!
+page_free_list
+)
+
+559 
+	`panic
+("'page_free_list' is a null pointer!");
+
+561 if (
+only_low_memory
+) {
+
+564 struct 
+PageInfo
+ *
+pp1
+, *
+pp2
+;
+
+565 struct 
+PageInfo
+ **
+tp
+[2] = { &
+pp1
+, &
+pp2
+ };
+
+566 for (
+pp
+ = 
+page_free_list
+; pp; pp = pp->
+pp_link
+) {
+
+567 int 
+pagetype
+ = 
+	`PDX
+(
+	`page2pa
+(
+pp
+)) >= 
+pdx_limit
+;
+
+568 *
+tp
+[
+pagetype
+] = 
+pp
+;
+
+569 
+tp
+[
+pagetype
+] = &
+pp
+->
+pp_link
+;
+
+571 *
+tp
+[1] = 0;
+
+572 *
+tp
+[0] = 
+pp2
+;
+
+573 
+page_free_list
+ = 
+pp1
+;
+
+578 for (
+pp
+ = 
+page_free_list
+; pp; pp = pp->
+pp_link
+)
+
+579 if (
+	`PDX
+(
+	`page2pa
+(
+pp
+)) < 
+pdx_limit
+)
+
+580 
+	`memset
+(
+	`page2kva
+(
+pp
+), 0x97, 128);
+
+582 
+first_free_page
+ = (char *) 
+	`boot_alloc
+(0);
+
+583 for (
+pp
+ = 
+page_free_list
+; pp; pp = pp->
+pp_link
+) {
+
+585 
+	`assert
+(
+pp
+ >= 
+pages
+);
+
+586 
+	`assert
+(
+pp
+ < 
+pages
+ + 
+npages
+);
+
+587 
+	`assert
+(((char *) 
+pp
+ - (char *) 
+pages
+) % sizeof(*pp) == 0);
+
+590 
+	`assert
+(
+	`page2pa
+(
+pp
+) != 0);
+
+591 
+	`assert
+(
+	`page2pa
+(
+pp
+) != 
+IOPHYSMEM
+);
+
+592 
+	`assert
+(
+	`page2pa
+(
+pp
+) != 
+EXTPHYSMEM
+ - 
+PGSIZE
+);
+
+593 
+	`assert
+(
+	`page2pa
+(
+pp
+) != 
+EXTPHYSMEM
+);
+
+594 
+	`assert
+(
+	`page2pa
+(
+pp
+) < 
+EXTPHYSMEM
+ || (char *) 
+	`page2kva
+(pp) >= 
+first_free_page
+);
+
+596 if (
+	`page2pa
+(
+pp
+) < 
+EXTPHYSMEM
+)
+
+597 ++
+nfree_basemem
+;
+
+599 ++
+nfree_extmem
+;
+
+602 
+	`assert
+(
+nfree_basemem
+ > 0);
+
+603 
+	`assert
+(
+nfree_extmem
+ > 0);
+
+604 
+	`cprintf
+("CHECK_PAGE_LIST:succeed!\n");
+
+605 
+	}
+}
+
+612 
+	$check_page_alloc
+(void)
+
+614 struct 
+PageInfo
+ *
+pp
+, *
+pp0
+, *
+pp1
+, *
+pp2
+;
+
+615 int 
+nfree
+;
+
+616 struct 
+PageInfo
+ *
+fl
+;
+
+617 char *
+c
+;
+
+618 int 
+i
+;
+
+620 if (!
+pages
+)
+
+621 
+	`panic
+("'pages' is a null pointer!");
+
+624 for (
+pp
+ = 
+page_free_list
+, 
+nfree
+ = 0; pp; pp = pp->
+pp_link
+)
+
+625 ++
+nfree
+;
+
+628 
+pp0
+ = 
+pp1
+ = 
+pp2
+ = 0;
+
+629 
+	`assert
+((
+pp0
+ = 
+	`page_alloc
+(0)));
+
+630 
+	`assert
+((
+pp1
+ = 
+	`page_alloc
+(0)));
+
+631 
+	`assert
+((
+pp2
+ = 
+	`page_alloc
+(0)));
+
+633 
+	`assert
+(
+pp0
+);
+
+634 
+	`assert
+(
+pp1
+ && pp1 != 
+pp0
+);
+
+635 
+	`assert
+(
+pp2
+ && pp2 != 
+pp1
+ && pp2 != 
+pp0
+);
+
+636 
+	`assert
+(
+	`page2pa
+(
+pp0
+) < 
+npages
+*
+PGSIZE
+);
+
+637 
+	`assert
+(
+	`page2pa
+(
+pp1
+) < 
+npages
+*
+PGSIZE
+);
+
+638 
+	`assert
+(
+	`page2pa
+(
+pp2
+) < 
+npages
+*
+PGSIZE
+);
+
+641 
+fl
+ = 
+page_free_list
+;
+
+642 
+page_free_list
+ = 0;
+
+645 
+	`assert
+(!
+	`page_alloc
+(0));
+
+648 
+	`page_free
+(
+pp0
+);
+
+649 
+	`page_free
+(
+pp1
+);
+
+650 
+	`page_free
+(
+pp2
+);
+
+651 
+pp0
+ = 
+pp1
+ = 
+pp2
+ = 0;
+
+652 
+	`assert
+((
+pp0
+ = 
+	`page_alloc
+(0)));
+
+653 
+	`assert
+((
+pp1
+ = 
+	`page_alloc
+(0)));
+
+654 
+	`assert
+((
+pp2
+ = 
+	`page_alloc
+(0)));
+
+655 
+	`assert
+(
+pp0
+);
+
+656 
+	`assert
+(
+pp1
+ && pp1 != 
+pp0
+);
+
+657 
+	`assert
+(
+pp2
+ && pp2 != 
+pp1
+ && pp2 != 
+pp0
+);
+
+658 
+	`assert
+(!
+	`page_alloc
+(0));
+
+661 
+	`memset
+(
+	`page2kva
+(
+pp0
+), 1, 
+PGSIZE
+);
+
+662 
+	`page_free
+(
+pp0
+);
+
+663 
+	`assert
+((
+pp
+ = 
+	`page_alloc
+(
+ALLOC_ZERO
+)));
+
+664 
+	`assert
+(
+pp
+ && 
+pp0
+ == pp);
+
+665 
+c
+ = 
+	`page2kva
+(
+pp
+);
+
+666 for (
+i
+ = 0; i < 
+PGSIZE
+; i++)
+
+667 
+	`assert
+(
+c
+[
+i
+] == 0);
+
+670 
+page_free_list
+ = 
+fl
+;
+
+673 
+	`page_free
+(
+pp0
+);
+
+674 
+	`page_free
+(
+pp1
+);
+
+675 
+	`page_free
+(
+pp2
+);
+
+678 for (
+pp
+ = 
+page_free_list
+; pp; pp = pp->
+pp_link
+)
+
+679 --
+nfree
+;
+
+680 
+	`assert
+(
+nfree
+ == 0);
+
+682 
+	`cprintf
+("check_page_alloc() succeeded!\n");
+
+683 
+	}
+}
+
+694 
+	$check_kern_pgdir
+(void)
+
+696 
+uint32_t
+ 
+i
+, 
+n
+;
+
+697 
+pde_t
+ *
+pgdir
+;
+
+699 
+pgdir
+ = 
+kern_pgdir
+;
+
+702 
+n
+ = 
+	`ROUNDUP
+(
+npages
+*sizeof(struct 
+PageInfo
+), 
+PGSIZE
+);
+
+703 for (
+i
+ = 0; i < 
+n
+; i += 
+PGSIZE
+)
+
+704 
+	`assert
+(
+	`check_va2pa
+(
+pgdir
+, 
+UPAGES
+ + 
+i
+) == 
+	`PADDR
+(
+pages
+) + i);
+
+708 for (
+i
+ = 0; i < 
+npages
+ * 
+PGSIZE
+; i += PGSIZE)
+
+709 
+	`assert
+(
+	`check_va2pa
+(
+pgdir
+, 
+KERNBASE
+ + 
+i
+) == i);
+
+712 for (
+i
+ = 0; i < 
+KSTKSIZE
+; i += 
+PGSIZE
+)
+
+713 
+	`assert
+(
+	`check_va2pa
+(
+pgdir
+, 
+KSTACKTOP
+ - 
+KSTKSIZE
+ + 
+i
+) == 
+	`PADDR
+(
+bootstack
+) + i);
+
+714 
+	`assert
+(
+	`check_va2pa
+(
+pgdir
+, 
+KSTACKTOP
+ - 
+PTSIZE
+) == ~0);
+
+717 for (
+i
+ = 0; i < 
+NPDENTRIES
+; i++) {
+
+718 switch (
+i
+) {
+
+719 case 
+	`PDX
+(
+UVPT
+):
+
+720 case 
+	`PDX
+(
+KSTACKTOP
+-1):
+
+721 case 
+	`PDX
+(
+UPAGES
+):
+
+722 
+	`assert
+(
+pgdir
+[
+i
+] & 
+PTE_P
+);
+
+725 if (
+i
+ >= 
+	`PDX
+(
+KERNBASE
+)) {
+
+726 
+	`assert
+(
+pgdir
+[
+i
+] & 
+PTE_P
+);
+
+727 
+	`assert
+(
+pgdir
+[
+i
+] & 
+PTE_W
+);
+
+729 
+	`assert
+(
+pgdir
+[
+i
+] == 0);
+
+733 
+	`cprintf
+("check_kern_pgdir() succeeded!\n");
+
+734 
+	}
+}
+
+741 static 
+physaddr_t
+
+
+742 
+	$check_va2pa
+(
+pde_t
+ *
+pgdir
+, 
+uintptr_t
+ 
+va
+)
+
+744 
+pte_t
+ *
+p
+;
+
+746 
+pgdir
+ = &pgdir[
+	`PDX
+(
+va
+)];
+
+747 if (!(*
+pgdir
+ & 
+PTE_P
+))
+
+749 
+p
+ = (
+pte_t
+*) 
+	`KADDR
+(
+	`PTE_ADDR
+(*
+pgdir
+));
+
+750 if (!(
+p
+[
+	`PTX
+(
+va
+)] & 
+PTE_P
+))
+
+752 return 
+	`PTE_ADDR
+(
+p
+[
+	`PTX
+(
+va
+)]);
+
+753 
+	}
+}
+
+758 
+	$check_page
+(void)
+
+760 struct 
+PageInfo
+ *
+pp
+, *
+pp0
+, *
+pp1
+, *
+pp2
+;
+
+761 struct 
+PageInfo
+ *
+fl
+;
+
+762 
+pte_t
+ *
+ptep
+, *
+ptep1
+;
+
+763 void *
+va
+;
+
+764 int 
+i
+;
+
+765 extern 
+pde_t
+ 
+entry_pgdir
+[];
+
+768 
+pp0
+ = 
+pp1
+ = 
+pp2
+ = 0;
+
+769 
+	`assert
+((
+pp0
+ = 
+	`page_alloc
+(0)));
+
+770 
+	`assert
+((
+pp1
+ = 
+	`page_alloc
+(0)));
+
+771 
+	`assert
+((
+pp2
+ = 
+	`page_alloc
+(0)));
+
+773 
+	`assert
+(
+pp0
+);
+
+774 
+	`assert
+(
+pp1
+ && pp1 != 
+pp0
+);
+
+775 
+	`assert
+(
+pp2
+ && pp2 != 
+pp1
+ && pp2 != 
+pp0
+);
+
+778 
+fl
+ = 
+page_free_list
+;
+
+779 
+page_free_list
+ = 0;
+
+782 
+	`assert
+(!
+	`page_alloc
+(0));
+
+785 
+	`assert
+(
+	`page_lookup
+(
+kern_pgdir
+, (void *) 0x0, &
+ptep
+) == 
+NULL
+);
+
+788 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp1
+, 0x0, 
+PTE_W
+) < 0);
+
+791 
+	`page_free
+(
+pp0
+);
+
+792 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp1
+, 0x0, 
+PTE_W
+) == 0);
+
+793 
+	`assert
+(
+	`PTE_ADDR
+(
+kern_pgdir
+[0]) == 
+	`page2pa
+(
+pp0
+));
+
+794 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 0x0) == 
+	`page2pa
+(
+pp1
+));
+
+795 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 1);
+
+796 
+	`assert
+(
+pp0
+->
+pp_ref
+ == 1);
+
+799 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp2
+, (void*) 
+PGSIZE
+, 
+PTE_W
+) == 0);
+
+800 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == 
+	`page2pa
+(
+pp2
+));
+
+801 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 1);
+
+804 
+	`assert
+(!
+	`page_alloc
+(0));
+
+807 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp2
+, (void*) 
+PGSIZE
+, 
+PTE_W
+) == 0);
+
+808 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == 
+	`page2pa
+(
+pp2
+));
+
+809 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 1);
+
+813 
+	`assert
+(!
+	`page_alloc
+(0));
+
+816 
+ptep
+ = (
+pte_t
+ *) 
+	`KADDR
+(
+	`PTE_ADDR
+(
+kern_pgdir
+[
+	`PDX
+(
+PGSIZE
+)]));
+
+817 
+	`assert
+(
+	`pgdir_walk
+(
+kern_pgdir
+, (void*)
+PGSIZE
+, 0) == 
+ptep
++
+	`PTX
+(PGSIZE));
+
+820 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp2
+, (void*) 
+PGSIZE
+, 
+PTE_W
+|
+PTE_U
+) == 0);
+
+821 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == 
+	`page2pa
+(
+pp2
+));
+
+822 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 1);
+
+823 
+	`assert
+(*
+	`pgdir_walk
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+, 0) & 
+PTE_U
+);
+
+824 
+	`assert
+(
+kern_pgdir
+[0] & 
+PTE_U
+);
+
+827 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp2
+, (void*) 
+PGSIZE
+, 
+PTE_W
+) == 0);
+
+828 
+	`assert
+(*
+	`pgdir_walk
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+, 0) & 
+PTE_W
+);
+
+829 
+	`assert
+(!(*
+	`pgdir_walk
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+, 0) & 
+PTE_U
+));
+
+832 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp0
+, (void*) 
+PTSIZE
+, 
+PTE_W
+) < 0);
+
+835 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp1
+, (void*) 
+PGSIZE
+, 
+PTE_W
+) == 0);
+
+836 
+	`assert
+(!(*
+	`pgdir_walk
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+, 0) & 
+PTE_U
+));
+
+839 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 0) == 
+	`page2pa
+(
+pp1
+));
+
+840 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == 
+	`page2pa
+(
+pp1
+));
+
+842 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 2);
+
+843 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 0);
+
+846 
+	`assert
+((
+pp
+ = 
+	`page_alloc
+(0)) && pp == 
+pp2
+);
+
+849 
+	`page_remove
+(
+kern_pgdir
+, 0x0);
+
+850 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 0x0) == ~0);
+
+851 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == 
+	`page2pa
+(
+pp1
+));
+
+852 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 1);
+
+853 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 0);
+
+856 
+	`assert
+(
+	`page_insert
+(
+kern_pgdir
+, 
+pp1
+, (void*) 
+PGSIZE
+, 0) == 0);
+
+857 
+	`assert
+(
+pp1
+->
+pp_ref
+);
+
+858 
+	`assert
+(
+pp1
+->
+pp_link
+ == 
+NULL
+);
+
+861 
+	`page_remove
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+);
+
+862 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 0x0) == ~0);
+
+863 
+	`assert
+(
+	`check_va2pa
+(
+kern_pgdir
+, 
+PGSIZE
+) == ~0);
+
+864 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 0);
+
+865 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 0);
+
+868 
+	`assert
+((
+pp
+ = 
+	`page_alloc
+(0)) && pp == 
+pp1
+);
+
+871 
+	`assert
+(!
+	`page_alloc
+(0));
+
+874 
+	`assert
+(
+	`PTE_ADDR
+(
+kern_pgdir
+[0]) == 
+	`page2pa
+(
+pp0
+));
+
+875 
+kern_pgdir
+[0] = 0;
+
+876 
+	`assert
+(
+pp0
+->
+pp_ref
+ == 1);
+
+877 
+pp0
+->
+pp_ref
+ = 0;
+
+880 
+	`page_free
+(
+pp0
+);
+
+881 
+va
+ = (void*)(
+PGSIZE
+ * 
+NPDENTRIES
+ + PGSIZE);
+
+882 
+ptep
+ = 
+	`pgdir_walk
+(
+kern_pgdir
+, 
+va
+, 1);
+
+883 
+ptep1
+ = (
+pte_t
+ *) 
+	`KADDR
+(
+	`PTE_ADDR
+(
+kern_pgdir
+[
+	`PDX
+(
+va
+)]));
+
+884 
+	`assert
+(
+ptep
+ == 
+ptep1
+ + 
+	`PTX
+(
+va
+));
+
+885 
+kern_pgdir
+[
+	`PDX
+(
+va
+)] = 0;
+
+886 
+pp0
+->
+pp_ref
+ = 0;
+
+889 
+	`memset
+(
+	`page2kva
+(
+pp0
+), 0xFF, 
+PGSIZE
+);
+
+890 
+	`page_free
+(
+pp0
+);
+
+891 
+	`pgdir_walk
+(
+kern_pgdir
+, 0x0, 1);
+
+892 
+ptep
+ = (
+pte_t
+ *) 
+	`page2kva
+(
+pp0
+);
+
+893 for(
+i
+=0; i<
+NPTENTRIES
+; i++)
+
+894 
+	`assert
+((
+ptep
+[
+i
+] & 
+PTE_P
+) == 0);
+
+895 
+kern_pgdir
+[0] = 0;
+
+896 
+pp0
+->
+pp_ref
+ = 0;
+
+899 
+page_free_list
+ = 
+fl
+;
+
+902 
+	`page_free
+(
+pp0
+);
+
+903 
+	`page_free
+(
+pp1
+);
+
+904 
+	`page_free
+(
+pp2
+);
+
+906 
+	`cprintf
+("check_page() succeeded!\n");
+
+907 
+	}
+}
+
+911 
+	$check_page_installed_pgdir
+(void)
+
+913 struct 
+PageInfo
+ *
+pp
+, *
+pp0
+, *
+pp1
+, *
+pp2
+;
+
+914 struct 
+PageInfo
+ *
+fl
+;
+
+915 
+pte_t
+ *
+ptep
+, *
+ptep1
+;
+
+916 
+uintptr_t
+ 
+va
+;
+
+917 int 
+i
+;
+
+920 
+pp1
+ = 
+pp2
+ = 0;
+
+921 
+	`assert
+((
+pp0
+ = 
+	`page_alloc
+(0)));
+
+922 
+	`assert
+((
+pp1
+ = 
+	`page_alloc
+(0)));
+
+923 
+	`assert
+((
+pp2
+ = 
+	`page_alloc
+(0)));
+
+924 
+	`page_free
+(
+pp0
+);
+
+925 
+	`memset
+(
+	`page2kva
+(
+pp1
+), 1, 
+PGSIZE
+);
+
+926 
+	`memset
+(
+	`page2kva
+(
+pp2
+), 2, 
+PGSIZE
+);
+
+927 
+	`page_insert
+(
+kern_pgdir
+, 
+pp1
+, (void*) 
+PGSIZE
+, 
+PTE_W
+);
+
+928 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 1);
+
+929 
+	`assert
+(*(
+uint32_t
+ *)
+PGSIZE
+ == 0x01010101U);
+
+930 
+	`page_insert
+(
+kern_pgdir
+, 
+pp2
+, (void*) 
+PGSIZE
+, 
+PTE_W
+);
+
+931 
+	`assert
+(*(
+uint32_t
+ *)
+PGSIZE
+ == 0x02020202U);
+
+932 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 1);
+
+933 
+	`assert
+(
+pp1
+->
+pp_ref
+ == 0);
+
+934 *(
+uint32_t
+ *)
+PGSIZE
+ = 0x03030303U;
+
+935 
+	`assert
+(*(
+uint32_t
+ *)
+	`page2kva
+(
+pp2
+) == 0x03030303U);
+
+936 
+	`page_remove
+(
+kern_pgdir
+, (void*) 
+PGSIZE
+);
+
+937 
+	`assert
+(
+pp2
+->
+pp_ref
+ == 0);
+
+940 
+	`assert
+(
+	`PTE_ADDR
+(
+kern_pgdir
+[0]) == 
+	`page2pa
+(
+pp0
+));
+
+941 
+kern_pgdir
+[0] = 0;
+
+942 
+	`assert
+(
+pp0
+->
+pp_ref
+ == 1);
+
+943 
+pp0
+->
+pp_ref
+ = 0;
+
+946 
+	`page_free
+(
+pp0
+);
+
+948 
+	`cprintf
+("check_page_installed_pgdir() succeeded!\n");
+
+949 
+	}
+}
+
+	@kern/pmap.h
+
+3 #ifndef 
+JOS_KERN_PMAP_H
+
+
+4 #define 
+	#JOS_KERN_PMAP_H
+
+
+	)
+
+5 #ifndef 
+JOS_KERNEL
+
+
+9 #include 
+	~<inc/memlayout.h
+>
+
+10 #include 
+	~<inc/assert.h
+>
+
+12 extern char 
+bootstacktop
+[], 
+bootstack
+[];
+
+14 extern struct 
+PageInfo
+ *
+pages
+;
+
+15 extern 
+size_t
+ 
+npages
+;
+
+17 extern 
+pde_t
+ *
+kern_pgdir
+;
+
+25 #define 
+	#PADDR
+(
+kva
+) 
+	`_paddr
+(
+__FILE__
+, 
+__LINE__
+, kva)
+
+	)
+
+27 static 
+inline
+ 
+physaddr_t
+
+
+28 
+	$_paddr
+(const char *
+file
+, int 
+line
+, void *
+kva
+)
+
+30 if ((
+uint32_t
+)
+kva
+ < 
+KERNBASE
+)
+
+31 
+	`_panic
+(
+file
+, 
+line
+, "PADDR called with invalid kva %08lx", 
+kva
+);
+
+32 return (
+physaddr_t
+)
+kva
+ - 
+KERNBASE
+;
+
+33 
+	}
+}
+
+37 #define 
+	#KADDR
+(
+pa
+) 
+	`_kaddr
+(
+__FILE__
+, 
+__LINE__
+, pa)
+
+	)
+
+39 static 
+inline
+ void*
+
+40 
+	$_kaddr
+(const char *
+file
+, int 
+line
+, 
+physaddr_t
+ 
+pa
+)
+
+42 if (
+	`PGNUM
+(
+pa
+) >= 
+npages
+)
+
+43 
+	`_panic
+(
+file
+, 
+line
+, "KADDR called with invalid pa %08lx", 
+pa
+);
+
+44 return (void *)(
+pa
+ + 
+KERNBASE
+);
+
+45 
+	}
+}
+
+50 
+	mALLOC_ZERO
+ = 1<<0,
+
+53 void 
+mem_init
+(void);
+
+55 void 
+page_init
+(void);
+
+56 struct 
+PageInfo
+ *
+page_alloc
+(int 
+alloc_flags
+);
+
+57 void 
+page_free
+(struct 
+PageInfo
+ *
+pp
+);
+
+58 int 
+page_insert
+(
+pde_t
+ *
+pgdir
+, struct 
+PageInfo
+ *
+pp
+, void *
+va
+, int 
+perm
+);
+
+59 void 
+page_remove
+(
+pde_t
+ *
+pgdir
+, void *
+va
+);
+
+60 struct 
+PageInfo
+ *
+page_lookup
+(
+pde_t
+ *
+pgdir
+, void *
+va
+, 
+pte_t
+ **
+pte_store
+);
+
+61 void 
+page_decref
+(struct 
+PageInfo
+ *
+pp
+);
+
+63 void 
+tlb_invalidate
+(
+pde_t
+ *
+pgdir
+, void *
+va
+);
+
+65 static 
+inline
+ 
+physaddr_t
+
+
+66 
+	$page2pa
+(struct 
+PageInfo
+ *
+pp
+)
+
+68 return (
+pp
+ - 
+pages
+) << 
+PGSHIFT
+;
+
+69 
+	}
+}
+
+71 static 
+inline
+ struct 
+PageInfo
+*
+
+72 
+	$pa2page
+(
+physaddr_t
+ 
+pa
+)
+
+74 if (
+	`PGNUM
+(
+pa
+) >= 
+npages
+)
+
+75 
+	`panic
+("pa2page called with invalid pa");
+
+76 return &
+pages
+[
+	`PGNUM
+(
+pa
+)];
+
+77 
+	}
+}
+
+79 static 
+inline
+ void*
+
+80 
+	$page2kva
+(struct 
+PageInfo
+ *
+pp
+)
+
+82 return 
+	`KADDR
+(
+	`page2pa
+(
+pp
+));
+
+83 
+	}
+}
+
+85 
+pte_t
+ *
+pgdir_walk
+(
+pde_t
+ *
+pgdir
+, const void *
+va
+, int 
+create
+);
+
+	@kern/printf.c
+
+4 #include 
+	~<inc/types.h
+>
+
+5 #include 
+	~<inc/stdio.h
+>
+
+6 #include 
+	~<inc/stdarg.h
+>
+
+10 
+	$putch
+(int 
+ch
+, int *
+cnt
+)
+
+12 
+	`cputchar
+(
+ch
+);
+
+13 *
+cnt
+++;
+
+14 
+	}
+}
+
+17 
+	$vcprintf
+(const char *
+fmt
+, 
+va_list
+ 
+ap
+)
+
+19 int 
+cnt
+ = 0;
+
+21 
+	`vprintfmt
+((void*)
+putch
+, &
+cnt
+, 
+fmt
+, 
+ap
+);
+
+22 return 
+cnt
+;
+
+23 
+	}
+}
+
+26 
+	$cprintf
+(const char *
+fmt
+, ...)
+
+28 
+va_list
+ 
+ap
+;
+
+29 int 
+cnt
+;
+
+31 
+	`va_start
+(
+ap
+, 
+fmt
+);
+
+32 
+cnt
+ = 
+	`vcprintf
+(
+fmt
+, 
+ap
+);
+
+33 
+	`va_end
+(
+ap
+);
+
+35 return 
+cnt
+;
+
+36 
+	}
+}
+
+	@lib/printfmt.c
+
+5 #include 
+	~<inc/types.h
+>
+
+6 #include 
+	~<inc/stdio.h
+>
+
+7 #include 
+	~<inc/string.h
+>
+
+8 #include 
+	~<inc/stdarg.h
+>
+
+9 #include 
+	~<inc/error.h
+>
+
+21 static const char * const 
+	gerror_string
+[
+MAXERROR
+] =
+
+23 [
+E_UNSPECIFIED
+] = "unspecified error",
+
+24 [
+E_BAD_ENV
+] = "bad environment",
+
+25 [
+E_INVAL
+] = "invalid parameter",
+
+26 [
+E_NO_MEM
+] = "out of memory",
+
+27 [
+E_NO_FREE_ENV
+] = "out of environments",
+
+28 [
+E_FAULT
+] = "segmentation fault",
+
+36 
+printnum
+(void (*
+putch
+)(int, void*), void *
+putdat
+,
+
+37 unsigned long long 
+num
+, unsigned 
+base
+, int 
+width
+, int 
+padc
+)
+
+40 if (
+num
+ >= 
+base
+) {
+
+41 
+	`printnum
+(
+putch
+, 
+putdat
+, 
+num
+ / 
+base
+, base, 
+width
+ - 1, 
+padc
+);
+
+44 while (--
+width
+ > 0)
+
+45 
+	`putch
+(
+padc
+, 
+putdat
+);
+
+49 
+	`putch
+("0123456789abcdef"[
+num
+ % 
+base
+], 
+putdat
+);
+
+50 
+	}
+}
+
+55 
+	$getuint
+(
+va_list
+ *
+ap
+, int 
+lflag
+)
+
+57 if (
+lflag
+ >= 2)
+
+58 return 
+	`va_arg
+(*
+ap
+, unsigned long long);
+
+59 else if (
+lflag
+)
+
+60 return 
+	`va_arg
+(*
+ap
+, unsigned long);
+
+62 return 
+	`va_arg
+(*
+ap
+, unsigned int);
+
+63 
+	}
+}
+
+68 
+	$getint
+(
+va_list
+ *
+ap
+, int 
+lflag
+)
+
+70 if (
+lflag
+ >= 2)
+
+71 return 
+	`va_arg
+(*
+ap
+, long long);
+
+72 else if (
+lflag
+)
+
+73 return 
+	`va_arg
+(*
+ap
+, long);
+
+75 return 
+	`va_arg
+(*
+ap
+, int);
+
+76 
+	}
+}
+
+80 void 
+printfmt
+(void (*
+putch
+)(int, void*), void *
+putdat
+, const char *
+fmt
+, ...);
+
+83 
+	`vprintfmt
+(void (*
+putch
+)(int, void*), void *
+putdat
+, const char *
+fmt
+, 
+va_list
+ 
+ap
+)
+
+85 register const char *
+p
+;
+
+86 register int 
+ch
+, 
+err
+;
+
+87 unsigned long long 
+num
+;
+
+88 int 
+base
+, 
+lflag
+, 
+width
+, 
+precision
+, 
+altflag
+;
+
+89 char 
+padc
+;
+
+92 while ((
+ch
+ = *(unsigned char *) 
+fmt
+++) != '%') {
+
+93 if (
+ch
+ == '\0')
+
+95 
+	`putch
+(
+ch
+, 
+putdat
+);
+
+99 
+padc
+ = ' ';
+
+100 
+width
+ = -1;
+
+101 
+precision
+ = -1;
+
+102 
+lflag
+ = 0;
+
+103 
+altflag
+ = 0;
+
+104 
+reswitch
+:
+
+105 switch (
+ch
+ = *(unsigned char *) 
+fmt
+++) {
+
+109 
+padc
+ = '-';
+
+110 goto 
+reswitch
+;
+
+114 
+padc
+ = '0';
+
+115 goto 
+reswitch
+;
+
+127 for (
+precision
+ = 0; ; ++
+fmt
+) {
+
+128 
+precision
+ = precision * 10 + 
+ch
+ - '0';
+
+129 
+ch
+ = *
+fmt
+;
+
+130 if (
+ch
+ < '0' || ch > '9')
+
+133 goto 
+process_precision
+;
+
+136 
+precision
+ = 
+	`va_arg
+(
+ap
+, int);
+
+137 goto 
+process_precision
+;
+
+140 if (
+width
+ < 0)
+
+141 
+width
+ = 0;
+
+142 goto 
+reswitch
+;
+
+145 
+altflag
+ = 1;
+
+146 goto 
+reswitch
+;
+
+148 
+process_precision
+:
+
+149 if (
+width
+ < 0)
+
+150 
+width
+ = 
+precision
+, precision = -1;
+
+151 goto 
+reswitch
+;
+
+155 
+lflag
+++;
+
+156 goto 
+reswitch
+;
+
+160 
+	`putch
+(
+	`va_arg
+(
+ap
+, int), 
+putdat
+);
+
+165 
+err
+ = 
+	`va_arg
+(
+ap
+, int);
+
+166 if (
+err
+ < 0)
+
+167 
+err
+ = -err;
+
+168 if (
+err
+ >= 
+MAXERROR
+ || (
+p
+ = 
+error_string
+[err]) == 
+NULL
+)
+
+169 
+	`printfmt
+(
+putch
+, 
+putdat
+, "error %d", 
+err
+);
+
+171 
+	`printfmt
+(
+putch
+, 
+putdat
+, "%s", 
+p
+);
+
+176 if ((
+p
+ = 
+	`va_arg
+(
+ap
+, char *)) == 
+NULL
+)
+
+177 
+p
+ = "(null)";
+
+178 if (
+width
+ > 0 && 
+padc
+ != '-')
+
+179 for (
+width
+ -= 
+	`strnlen
+(
+p
+, 
+precision
+); width > 0; width--)
+
+180 
+	`putch
+(
+padc
+, 
+putdat
+);
+
+181 for (; (
+ch
+ = *
+p
+++) != '\0' && (
+precision
+ < 0 || --precision >= 0); 
+width
+--)
+
+182 if (
+altflag
+ && (
+ch
+ < ' ' || ch > '~'))
+
+183 
+	`putch
+('?', 
+putdat
+);
+
+185 
+	`putch
+(
+ch
+, 
+putdat
+);
+
+186 for (; 
+width
+ > 0; width--)
+
+187 
+	`putch
+(' ', 
+putdat
+);
+
+192 
+num
+ = 
+	`getint
+(&
+ap
+, 
+lflag
+);
+
+193 if ((long long) 
+num
+ < 0) {
+
+194 
+	`putch
+('-', 
+putdat
+);
+
+195 
+num
+ = -(long long) num;
+
+197 
+base
+ = 10;
+
+198 goto 
+number
+;
+
+202 
+num
+ = 
+	`getuint
+(&
+ap
+, 
+lflag
+);
+
+203 
+base
+ = 10;
+
+204 goto 
+number
+;
+
+209 
+num
+ = 
+	`getuint
+(&
+ap
+, 
+lflag
+);
+
+210 
+base
+ = 8;
+
+211 goto 
+number
+;
+
+216 
+	`putch
+('0', 
+putdat
+);
+
+217 
+	`putch
+('x', 
+putdat
+);
+
+218 
+num
+ = (unsigned long long)
+
+219 (
+uintptr_t
+) 
+	`va_arg
+(
+ap
+, void *);
+
+220 
+base
+ = 16;
+
+221 goto 
+number
+;
+
+225 
+num
+ = 
+	`getuint
+(&
+ap
+, 
+lflag
+);
+
+226 
+base
+ = 16;
+
+227 
+number
+:
+
+228 
+	`printnum
+(
+putch
+, 
+putdat
+, 
+num
+, 
+base
+, 
+width
+, 
+padc
+);
+
+233 
+	`putch
+(
+ch
+, 
+putdat
+);
+
+238 
+	`putch
+('%', 
+putdat
+);
+
+239 for (
+fmt
+--; fmt[-1] != '%'; fmt--)
+
+244 
+	}
+}
+
+247 
+printfmt
+(void (*
+putch
+)(int, void*), void *
+putdat
+, const char *
+fmt
+, ...)
+
+249 
+va_list
+ 
+ap
+;
+
+251 
+	`va_start
+(
+ap
+, 
+fmt
+);
+
+252 
+	`vprintfmt
+(
+putch
+, 
+putdat
+, 
+fmt
+, 
+ap
+);
+
+253 
+	`va_end
+(
+ap
+);
+
+254 
+	}
+}
+
+256 struct 
+	ssprintbuf
+ {
+
+257 char *
+	mbuf
+;
+
+258 char *
+	mebuf
+;
+
+259 int 
+	mcnt
+;
+
+263 
+	$sprintputch
+(int 
+ch
+, struct 
+sprintbuf
+ *
+b
+)
+
+265 
+b
+->
+cnt
+++;
+
+266 if (
+b
+->
+buf
+ < b->
+ebuf
+)
+
+267 *
+b
+->
+buf
+++ = 
+ch
+;
+
+268 
+	}
+}
+
+271 
+	$vsnprintf
+(char *
+buf
+, int 
+n
+, const char *
+fmt
+, 
+va_list
+ 
+ap
+)
+
+273 struct 
+sprintbuf
+ 
+b
+ = {
+buf
+, buf+
+n
+-1, 0};
+
+275 if (
+buf
+ == 
+NULL
+ || 
+n
+ < 1)
+
+276 return -
+E_INVAL
+;
+
+279 
+	`vprintfmt
+((void*)
+sprintputch
+, &
+b
+, 
+fmt
+, 
+ap
+);
+
+282 *
+b
+.
+buf
+ = '\0';
+
+284 return 
+b
+.
+cnt
+;
+
+285 
+	}
+}
+
+288 
+	$snprintf
+(char *
+buf
+, int 
+n
+, const char *
+fmt
+, ...)
+
+290 
+va_list
+ 
+ap
+;
+
+291 int 
+rc
+;
+
+293 
+	`va_start
+(
+ap
+, 
+fmt
+);
+
+294 
+rc
+ = 
+	`vsnprintf
+(
+buf
+, 
+n
+, 
+fmt
+, 
+ap
+);
+
+295 
+	`va_end
+(
+ap
+);
+
+297 return 
+rc
+;
+
+298 
+	}
+}
+
+	@lib/readline.c
+
+1 #include 
+	~<inc/stdio.h
+>
+
+2 #include 
+	~<inc/error.h
+>
+
+4 #define 
+	#BUFLEN
+ 1024
+
+	)
+
+5 static char 
+	gbuf
+[
+BUFLEN
+];
+
+8 
+	$readline
+(const char *
+prompt
+)
+
+10 int 
+i
+, 
+c
+, 
+echoing
+;
+
+12 if (
+prompt
+ != 
+NULL
+)
+
+13 
+	`cprintf
+("%s", 
+prompt
+);
+
+15 
+i
+ = 0;
+
+16 
+echoing
+ = 
+	`iscons
+(0);
+
+18 
+c
+ = 
+	`getchar
+();
+
+19 if (
+c
+ < 0) {
+
+20 
+	`cprintf
+("read error: %e\n", 
+c
+);
+
+21 return 
+NULL
+;
+
+22 } else if ((
+c
+ == '\b' || c == '\x7f') && 
+i
+ > 0) {
+
+23 if (
+echoing
+)
+
+24 
+	`cputchar
+('\b');
+
+25 
+i
+--;
+
+26 } else if (
+c
+ >= ' ' && 
+i
+ < 
+BUFLEN
+-1) {
+
+27 if (
+echoing
+)
+
+28 
+	`cputchar
+(
+c
+);
+
+29 
+buf
+[
+i
+++] = 
+c
+;
+
+30 } else if (
+c
+ == '\n' || c == '\r') {
+
+31 if (
+echoing
+)
+
+32 
+	`cputchar
+('\n');
+
+33 
+buf
+[
+i
+] = 0;
+
+34 return 
+buf
+;
+
+37 
+	}
+}
+
+	@lib/string.c
+
+3 #include 
+	~<inc/string.h
+>
+
+9 #define 
+	#ASM
+ 1
+
+	)
+
+12 
+	$strlen
+(const char *
+s
+)
+
+14 int 
+n
+;
+
+16 for (
+n
+ = 0; *
+s
+ != '\0'; s++)
+
+17 
+n
+++;
+
+18 return 
+n
+;
+
+19 
+	}
+}
+
+22 
+	$strnlen
+(const char *
+s
+, 
+size_t
+ 
+size
+)
+
+24 int 
+n
+;
+
+26 for (
+n
+ = 0; 
+size
+ > 0 && *
+s
+ != '\0'; s++, size--)
+
+27 
+n
+++;
+
+28 return 
+n
+;
+
+29 
+	}
+}
+
+32 
+	$strcpy
+(char *
+dst
+, const char *
+src
+)
+
+34 char *
+ret
+;
+
+36 
+ret
+ = 
+dst
+;
+
+37 while ((*
+dst
+++ = *
+src
+++) != '\0')
+
+39 return 
+ret
+;
+
+40 
+	}
+}
+
+43 
+	$strcat
+(char *
+dst
+, const char *
+src
+)
+
+45 int 
+len
+ = 
+	`strlen
+(
+dst
+);
+
+46 
+	`strcpy
+(
+dst
+ + 
+len
+, 
+src
+);
+
+47 return 
+dst
+;
+
+48 
+	}
+}
+
+51 
+	$strncpy
+(char *
+dst
+, const char *
+src
+, 
+size_t
+ 
+size
+) {
+
+52 
+size_t
+ 
+i
+;
+
+53 char *
+ret
+;
+
+55 
+ret
+ = 
+dst
+;
+
+56 for (
+i
+ = 0; i < 
+size
+; i++) {
+
+57 *
+dst
+++ = *
+src
+;
+
+59 if (*
+src
+ != '\0')
+
+60 
+src
+++;
+
+62 return 
+ret
+;
+
+63 
+	}
+}
+
+65 
+size_t
+
+
+66 
+	$strlcpy
+(char *
+dst
+, const char *
+src
+, 
+size_t
+ 
+size
+)
+
+68 char *
+dst_in
+;
+
+70 
+dst_in
+ = 
+dst
+;
+
+71 if (
+size
+ > 0) {
+
+72 while (--
+size
+ > 0 && *
+src
+ != '\0')
+
+73 *
+dst
+++ = *
+src
+++;
+
+74 *
+dst
+ = '\0';
+
+76 return 
+dst
+ - 
+dst_in
+;
+
+77 
+	}
+}
+
+80 
+	$strcmp
+(const char *
+p
+, const char *
+q
+)
+
+82 while (*
+p
+ && *p == *
+q
+)
+
+83 
+p
+++, 
+q
+++;
+
+84 return (int) ((unsigned char) *
+p
+ - (unsigned char) *
+q
+);
+
+85 
+	}
+}
+
+88 
+	$strncmp
+(const char *
+p
+, const char *
+q
+, 
+size_t
+ 
+n
+)
+
+90 while (
+n
+ > 0 && *
+p
+ && *p == *
+q
+)
+
+91 
+n
+--, 
+p
+++, 
+q
+++;
+
+92 if (
+n
+ == 0)
+
+95 return (int) ((unsigned char) *
+p
+ - (unsigned char) *
+q
+);
+
+96 
+	}
+}
+
+101 
+	$strchr
+(const char *
+s
+, char 
+c
+)
+
+103 for (; *
+s
+; s++)
+
+104 if (*
+s
+ == 
+c
+)
+
+105 return (char *) 
+s
+;
+
+107 
+	}
+}
+
+112 
+	$strfind
+(const char *
+s
+, char 
+c
+)
+
+114 for (; *
+s
+; s++)
+
+115 if (*
+s
+ == 
+c
+)
+
+117 return (char *) 
+s
+;
+
+118 
+	}
+}
+
+120 #if 
+ASM
+
+
+122 
+	$memset
+(void *
+v
+, int 
+c
+, 
+size_t
+ 
+n
+)
+
+124 char *
+p
+;
+
+126 if (
+n
+ == 0)
+
+127 return 
+v
+;
+
+128 if ((int)
+v
+%4 == 0 && 
+n
+%4 == 0) {
+
+129 
+c
+ &= 0xFF;
+
+130 
+c
+ = (c<<24)|(c<<16)|(c<<8)|c;
+
+131 
+asm
+ volatile("cld; rep stosl\n"
+
+132 :: "D" (
+v
+), "a" (
+c
+), "c" (
+n
+/4)
+
+135 
+asm
+ volatile("cld; rep stosb\n"
+
+136 :: "D" (
+v
+), "a" (
+c
+), "c" (
+n
+)
+
+138 return 
+v
+;
+
+139 
+	}
+}
+
+142 
+	$memmove
+(void *
+dst
+, const void *
+src
+, 
+size_t
+ 
+n
+)
+
+144 const char *
+s
+;
+
+145 char *
+d
+;
+
+147 
+s
+ = 
+src
+;
+
+148 
+d
+ = 
+dst
+;
+
+149 if (
+s
+ < 
+d
+ && s + 
+n
+ > d) {
+
+150 
+s
+ += 
+n
+;
+
+151 
+d
+ += 
+n
+;
+
+152 if ((int)
+s
+%4 == 0 && (int)
+d
+%4 == 0 && 
+n
+%4 == 0)
+
+153 
+asm
+ volatile("std; rep movsl\n"
+
+154 :: "D" (
+d
+-4), "S" (
+s
+-4), "c" (
+n
+/4) : "cc", "memory");
+
+156 
+asm
+ volatile("std; rep movsb\n"
+
+157 :: "D" (
+d
+-1), "S" (
+s
+-1), "c" (
+n
+) : "cc", "memory");
+
+159 
+asm
+ volatile("cld" ::: "cc");
+
+161 if ((int)
+s
+%4 == 0 && (int)
+d
+%4 == 0 && 
+n
+%4 == 0)
+
+162 
+asm
+ volatile("cld; rep movsl\n"
+
+163 :: "D" (
+d
+), "S" (
+s
+), "c" (
+n
+/4) : "cc", "memory");
+
+165 
+asm
+ volatile("cld; rep movsb\n"
+
+166 :: "D" (
+d
+), "S" (
+s
+), "c" (
+n
+) : "cc", "memory");
+
+168 return 
+dst
+;
+
+169 
+	}
+}
+
+174 
+	$memset
+(void *
+v
+, int 
+c
+, 
+size_t
+ 
+n
+)
+
+176 char *
+p
+;
+
+177 int 
+m
+;
+
+179 
+p
+ = 
+v
+;
+
+180 
+m
+ = 
+n
+;
+
+181 while (--
+m
+ >= 0)
+
+182 *
+p
+++ = 
+c
+;
+
+184 return 
+v
+;
+
+185 
+	}
+}
+
+188 
+	$memmove
+(void *
+dst
+, const void *
+src
+, 
+size_t
+ 
+n
+)
+
+190 const char *
+s
+;
+
+191 char *
+d
+;
+
+193 
+s
+ = 
+src
+;
+
+194 
+d
+ = 
+dst
+;
+
+195 if (
+s
+ < 
+d
+ && s + 
+n
+ > d) {
+
+196 
+s
+ += 
+n
+;
+
+197 
+d
+ += 
+n
+;
+
+198 while (
+n
+-- > 0)
+
+199 *--
+d
+ = *--
+s
+;
+
+201 while (
+n
+-- > 0)
+
+202 *
+d
+++ = *
+s
+++;
+
+204 return 
+dst
+;
+
+205 
+	}
+}
+
+209 
+	$memcpy
+(void *
+dst
+, const void *
+src
+, 
+size_t
+ 
+n
+)
+
+211 return 
+	`memmove
+(
+dst
+, 
+src
+, 
+n
+);
+
+212 
+	}
+}
+
+215 
+	$memcmp
+(const void *
+v1
+, const void *
+v2
+, 
+size_t
+ 
+n
+)
+
+217 const 
+uint8_t
+ *
+s1
+ = (const uint8_t *) 
+v1
+;
+
+218 const 
+uint8_t
+ *
+s2
+ = (const uint8_t *) 
+v2
+;
+
+220 while (
+n
+-- > 0) {
+
+221 if (*
+s1
+ != *
+s2
+)
+
+222 return (int) *
+s1
+ - (int) *
+s2
+;
+
+223 
+s1
+++, 
+s2
+++;
+
+227 
+	}
+}
+
+230 
+	$memfind
+(const void *
+s
+, int 
+c
+, 
+size_t
+ 
+n
+)
+
+232 const void *
+ends
+ = (const char *) 
+s
+ + 
+n
+;
+
+233 for (; 
+s
+ < 
+ends
+; s++)
+
+234 if (*(const unsigned char *) 
+s
+ == (unsigned char) 
+c
+)
+
+236 return (void *) 
+s
+;
+
+237 
+	}
+}
+
+240 
+	$strtol
+(const char *
+s
+, char **
+endptr
+, int 
+base
+)
+
+242 int 
+neg
+ = 0;
+
+243 long 
+val
+ = 0;
+
+246 while (*
+s
+ == ' ' || *s == '\t')
+
+247 
+s
+++;
+
+250 if (*
+s
+ == '+')
+
+251 
+s
+++;
+
+252 else if (*
+s
+ == '-')
+
+253 
+s
+++, 
+neg
+ = 1;
+
+256 if ((
+base
+ == 0 || base == 16) && (
+s
+[0] == '0' && s[1] == 'x'))
+
+257 
+s
+ += 2, 
+base
+ = 16;
+
+258 else if (
+base
+ == 0 && 
+s
+[0] == '0')
+
+259 
+s
+++, 
+base
+ = 8;
+
+260 else if (
+base
+ == 0)
+
+261 
+base
+ = 10;
+
+265 int 
+dig
+;
+
+267 if (*
+s
+ >= '0' && *s <= '9')
+
+268 
+dig
+ = *
+s
+ - '0';
+
+269 else if (*
+s
+ >= 'a' && *s <= 'z')
+
+270 
+dig
+ = *
+s
+ - 'a' + 10;
+
+271 else if (*
+s
+ >= 'A' && *s <= 'Z')
+
+272 
+dig
+ = *
+s
+ - 'A' + 10;
+
+275 if (
+dig
+ >= 
+base
+)
+
+277 
+s
+++, 
+val
+ = (val * 
+base
+) + 
+dig
+;
+
+281 if (
+endptr
+)
+
+282 *
+endptr
+ = (char *) 
+s
+;
+
+283 return (
+neg
+ ? -
+val
+ : val);
+
+284 
+	}
+}
+
+	@user/sendpage.c
+
+4 #include 
+	~<inc/lib.h
+>
+
+6 const char *
+	gstr1
+ = "hello child environment! how are you?";
+
+7 const char *
+	gstr2
+ = "hello parent environment! I'm good.";
+
+9 #define 
+	#TEMP_ADDR
+ ((char*)0xa00000)
+
+	)
+
+10 #define 
+	#TEMP_ADDR_CHILD
+ ((char*)0xb00000)
+
+	)
+
+13 
+	$umain
+(int 
+argc
+, char **
+argv
+)
+
+15 
+envid_t
+ 
+who
+;
+
+17 if ((
+who
+ = 
+	`fork
+()) == 0) {
+
+19 
+	`ipc_recv
+(&
+who
+, 
+TEMP_ADDR_CHILD
+, 0);
+
+20 
+	`cprintf
+("%x got message: %s\n", 
+who
+, 
+TEMP_ADDR_CHILD
+);
+
+21 if (
+	`strncmp
+(
+TEMP_ADDR_CHILD
+, 
+str1
+, 
+	`strlen
+(str1)) == 0)
+
+22 
+	`cprintf
+("child received correct message\n");
+
+24 
+	`memcpy
+(
+TEMP_ADDR_CHILD
+, 
+str2
+, 
+	`strlen
+(str2) + 1);
+
+25 
+	`ipc_send
+(
+who
+, 0, 
+TEMP_ADDR_CHILD
+, 
+PTE_P
+ | 
+PTE_W
+ | 
+PTE_U
+);
+
+30 
+	`sys_page_alloc
+(
+thisenv
+->
+env_id
+, 
+TEMP_ADDR
+, 
+PTE_P
+ | 
+PTE_W
+ | 
+PTE_U
+);
+
+31 
+	`memcpy
+(
+TEMP_ADDR
+, 
+str1
+, 
+	`strlen
+(str1) + 1);
+
+32 
+	`ipc_send
+(
+who
+, 0, 
+TEMP_ADDR
+, 
+PTE_P
+ | 
+PTE_W
+ | 
+PTE_U
+);
+
+34 
+	`ipc_recv
+(&
+who
+, 
+TEMP_ADDR
+, 0);
+
+35 
+	`cprintf
+("%x got message: %s\n", 
+who
+, 
+TEMP_ADDR
+);
+
+36 if (
+	`strncmp
+(
+TEMP_ADDR
+, 
+str2
+, 
+	`strlen
+(str2)) == 0)
+
+37 
+	`cprintf
+("parent received correct message\n");
+
+39 
+	}
+}
+
+	@
+1
+.
+0
+30
+400
+boot/main.c
+inc/assert.h
+inc/elf.h
+inc/error.h
+inc/kbdreg.h
+inc/memlayout.h
+inc/mmu.h
+inc/stab.h
+inc/stdarg.h
+inc/stdio.h
+inc/string.h
+inc/types.h
+inc/x86.h
+kern/console.c
+kern/console.h
+kern/entrypgdir.c
+kern/init.c
+kern/kclock.c
+kern/kclock.h
+kern/kdebug.c
+kern/kdebug.h
+kern/monitor.c
+kern/monitor.h
+kern/pmap.c
+kern/pmap.h
+kern/printf.c
+lib/printfmt.c
+lib/readline.c
+lib/string.c
+user/sendpage.c
