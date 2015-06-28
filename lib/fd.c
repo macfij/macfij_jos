@@ -2,6 +2,8 @@
 
 #define debug		0
 
+// TODO: prepare ascii-art that represents memlayout for FD/fs ?
+
 // Maximum number of file descriptors a program may hold open concurrently
 #define MAXFD		32
 // Bottom of file descriptor area
@@ -250,8 +252,8 @@ write(int fdnum, const void *buf, size_t n)
 		return -E_INVAL;
 	}
 	if (debug)
-		cprintf("write %d %p %d via dev %s\n",
-			fdnum, buf, n, dev->dev_name);
+		cprintf("write %d %p: %d %d via dev %s\n",
+			fdnum, buf, *(int*)buf, n, dev->dev_name);
 	if (!dev->dev_write)
 		return -E_NOT_SUPP;
 	return (*dev->dev_write)(fd, buf, n);

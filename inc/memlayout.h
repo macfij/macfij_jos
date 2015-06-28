@@ -47,7 +47,7 @@
  *                     |       Memory-mapped I/O      | RW/--  PTSIZE
  * ULIM, MMIOBASE -->  +------------------------------+ 0xef800000
  *                     |  Cur. Page Table (User R-)   | R-/R-  PTSIZE
- *    UVPT      ---->  +------------------------------+ 0xef400000
+ *    UVPT      ---->  +------------------------------+ 0xef400000 (0x3bd << 22)
  *                     |          RO PAGES            | R-/R-  PTSIZE
  *    UPAGES    ---->  +------------------------------+ 0xef000000
  *                     |           RO ENVS            | R-/R-  PTSIZE
