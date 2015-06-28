@@ -16,6 +16,8 @@ static int
 fsipc(unsigned type, void *dstva)
 {
 	static envid_t fsenv;
+	int perm = PTE_P | PTE_W | PTE_U;
+
 	if (fsenv == 0)
 		fsenv = ipc_find_env(ENV_TYPE_FS);
 
@@ -24,7 +26,7 @@ fsipc(unsigned type, void *dstva)
 	if (debug)
 		cprintf("[%08x] fsipc %d %08x\n", thisenv->env_id, type, *(uint32_t *)&fsipcbuf);
 
-	ipc_send(fsenv, type, &fsipcbuf, PTE_P | PTE_W | PTE_U);
+	ipc_send(fsenv, type, &fsipcbuf, perm);
 	return ipc_recv(NULL, dstva, NULL);
 }
 
@@ -124,6 +126,7 @@ devfile_read(struct Fd *fd, void *buf, size_t n)
 	assert(r <= n);
 	assert(r <= PGSIZE);
 	memmove(buf, fsipcbuf.readRet.ret_buf, r);
+	fd->fd_offset += r;
 	return r;
 }
 
@@ -141,7 +144,19 @@ devfile_write(struct Fd *fd, const void *buf, size_t n)
 	// remember that write is always allowed to write *fewer*
 	// bytes than requested.
 	// LAB 5: Your code here
-	panic("devfile_write not implemented");
+	int r;
+
+	fsipcbuf.write.req_fileid = fd->fd_file.id;
+	fsipcbuf.write.req_n = n;
+	// copy data to be sent from buf to struct write
+	memcpy(fsipcbuf.write.req_buf, buf, n);
+	if ((r = fsipc(FSREQ_WRITE, NULL)) < 0)
+		return r;
+	assert(r <= n);
+	assert(r < PGSIZE - (sizeof(int) + sizeof(size_t)));
+	fd->fd_offset += r;
+
+	return r;
 }
 
 static int

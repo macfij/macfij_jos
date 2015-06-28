@@ -55,12 +55,13 @@ void
 ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 {
 	// LAB 4: Your code here.
-	/* cprintf("IN WRAPPER IPC SEND======;curenv %d\n", ENVX(thisenv->env_id)); */
 	int ret;
 	bool finish = false;
 	int pg_to_send = (pg == NULL) ? UTOP : (int)pg;
+	int perm_to_send = (perm == 0) ? 0 : perm;
 	while (!finish) {
-		ret = sys_ipc_try_send(to_env, val, (void *)pg_to_send, perm);
+		ret = sys_ipc_try_send(to_env, val, (void *)pg_to_send,
+					perm_to_send);
 		switch(ret) {
 		case -E_IPC_NOT_RECV:
 			continue;

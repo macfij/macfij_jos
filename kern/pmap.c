@@ -216,7 +216,9 @@ mem_init(void)
 	//      (ie. perm = PTE_U | PTE_P)
 	//    - pages itself -- kernel RW, user NONE
 	// Your code goes here:
-	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_W);
+	boot_map_region(kern_pgdir, UPAGES, PTSIZE, PADDR(pages), PTE_U | PTE_P);
+	boot_map_region(kern_pgdir, (uintptr_t)pages, PTSIZE,
+			PADDR(pages), PTE_W | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map the 'envs' array read-only by the user at linear address UENVS
@@ -240,7 +242,8 @@ mem_init(void)
 	// Your code goes here:
 	//for (i = 0; i < npages * PGSIZE; i += PGSIZE)
 	//	assert(check_va2pa(pgdir, KERNBASE + i) == i);
-	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE, KSTKSIZE, PADDR(bootstack), PTE_W);
+	boot_map_region(kern_pgdir, KSTACKTOP-KSTKSIZE,
+			KSTKSIZE, PADDR(bootstack), PTE_W | PTE_P);
 
 	//////////////////////////////////////////////////////////////////////
 	// Map all of physical memory at KERNBASE.
@@ -251,7 +254,8 @@ mem_init(void)
 	// Permissions: kernel RW, user NONE
 	// Your code goes here:
 	uint32_t four_gig = ~0;
-	boot_map_region(kern_pgdir, KERNBASE, four_gig - KERNBASE, 0x0, PTE_W);
+	boot_map_region(kern_pgdir, KERNBASE, four_gig - KERNBASE,
+			0x0, PTE_W | PTE_P);
 
 	// Initialize the SMP-related parts of the memory map
 	mem_init_mp();
@@ -359,9 +363,8 @@ page_init(void)
 	// rest of base mem: free
 	for (i = 2; i < npages_basemem; i++) {
 		// i == 7 -> 0x7000 (addr of MPENTRY_ADDR);
-		if (i == 7) {
+		if (i == 7)
 			continue;
-		}
 		pages[i].pp_ref = 0;
 		pages[i].pp_link = page_free_list;
 		page_free_list = &pages[i];
@@ -485,7 +488,6 @@ pgdir_walk(pde_t *pgdir, const void *va, int create)
 	// at pa, then, since this is a PAGE TABLE add offset PTX to get
 	// page table entry;
 	return (pte_t *)KADDR(pa) + PTX(va);
-
 }
 
 //
@@ -597,6 +599,7 @@ page_remove(pde_t *pgdir, void *va)
 	// Fill this function in
 	pte_t *pte = NULL;
 	struct PageInfo *p = NULL;
+
 	p = page_lookup(pgdir, va, &pte);
 	if (!pte || !p)
 		return;

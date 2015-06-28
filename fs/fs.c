@@ -62,7 +62,15 @@ alloc_block(void)
 	// super->s_nblocks blocks in the disk altogether.
 
 	// LAB 5: Your code here.
-	panic("alloc_block not implemented");
+	uint32_t blockno;
+
+	for (blockno = 2; blockno < super->s_nblocks; ++blockno) {
+		if (block_is_free(blockno)) {
+			bitmap[blockno / 32] &= ~(1 << (blockno % 32));
+			flush_block(&bitmap[blockno / 32]);
+			return blockno;
+		}
+	}
 	return -E_NO_DISK;
 }
 
@@ -134,8 +142,38 @@ fs_init(void)
 static int
 file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool alloc)
 {
-       // LAB 5: Your code here.
-       panic("file_block_walk not implemented");
+	// LAB 5: Your code here.
+	uint32_t *indirect;
+	int newblockno;
+
+	if (filebno >= NDIRECT + NINDIRECT)
+		return -E_INVAL;
+
+	if (filebno < NDIRECT) {
+		*ppdiskbno = &(f->f_direct[filebno]);
+		return 0;
+	}
+
+	if (f->f_indirect != 0) {
+		indirect = diskaddr(f->f_indirect);
+		*ppdiskbno = &indirect[filebno - NDIRECT];
+		return 0;
+	}
+
+	if (!alloc)
+		return -E_NOT_FOUND;
+
+	newblockno = alloc_block();
+	if (newblockno < 0)
+		return newblockno;
+
+	f->f_indirect = newblockno;
+	indirect = diskaddr(f->f_indirect);
+	memset(indirect, 0, BLKSIZE);
+	*ppdiskbno = &indirect[filebno - NDIRECT];
+	
+	return 0;
+
 }
 
 // Set *blk to the address in memory where the filebno'th
@@ -149,8 +187,20 @@ file_block_walk(struct File *f, uint32_t filebno, uint32_t **ppdiskbno, bool all
 int
 file_get_block(struct File *f, uint32_t filebno, char **blk)
 {
-       // LAB 5: Your code here.
-       panic("file_get_block not implemented");
+	// LAB 5: Your code here.
+	int r;
+	uint32_t *pdiskbno; // slot
+	if ((r = file_block_walk(f, filebno, &pdiskbno, true)) < 0)
+		return r;
+
+	if (*pdiskbno == 0) {
+		if ((r = alloc_block()) < 0)
+			return r;
+		*pdiskbno = r;
+	}
+	*blk = diskaddr(*pdiskbno);
+	return 0;
+
 }
 
 // Try to find a file named "name" in dir.  If so, set *file to it.
@@ -335,7 +385,6 @@ file_read(struct File *f, void *buf, size_t count, off_t offset)
 		pos += bn;
 		buf += bn;
 	}
-
 	return count;
 }
 

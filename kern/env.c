@@ -289,7 +289,7 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 	env_free_list = e->env_link;
 	*newenv_store = e;
 
-	// cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	cprintf("[%08x] new env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 	return 0;
 }
 
@@ -313,14 +313,15 @@ region_alloc(struct Env *e, void *va, size_t len)
 	struct PageInfo *p;
 	int ret;
 	uintptr_t va_beg = ROUNDDOWN((uintptr_t)va, PGSIZE);
-	uintptr_t va_end = ROUNDUP(va_beg + len, PGSIZE);
+	// huge bug was here; i was rounding up va_beg instead of va...
+	uintptr_t va_end = ROUNDUP((uintptr_t)va + len, PGSIZE);
 
 	while (va_beg < va_end) {
 		// make sure in what PDE you are operating at
 		p = page_alloc(0);
 		if (!p)
 			panic("region_alloc(): could not alloc page.sorry.");
-		ret = page_insert(e->env_pgdir, p, (void*)va_beg, PTE_U | PTE_W);
+		ret = page_insert(e->env_pgdir, p, (void*)va_beg, PTE_P | PTE_U | PTE_W);
 		if (ret < 0)
 			panic("region_alloc(): could not insert page.sorry.");
 		va_beg += PGSIZE;
@@ -386,21 +387,14 @@ load_icode(struct Env *e, uint8_t *binary)
 
 	// LAB 3: Your code here.
 
-	// check elf header
-	elfhdr = (struct Elf *)binary;
-	if (elfhdr->e_magic != ELF_MAGIC) {
-		panic("load_icode: wrong ELF format.");
-	}
-
 	// this is needed in order to allocate pages in env's PDE within
 	// region_alloc function - there's a page_alloc() call;
 	lcr3(PADDR(e->env_pgdir));
 
 	// check elf header
 	elfhdr = (struct Elf *)binary;
-	if (elfhdr->e_magic != ELF_MAGIC) {
+	if (elfhdr->e_magic != ELF_MAGIC)
 		panic("load_icode: wrong ELF format.");
-	}
 
 	e->env_tf.tf_eip = elfhdr->e_entry;
 
@@ -410,9 +404,8 @@ load_icode(struct Env *e, uint8_t *binary)
 	phend = phdr + elfhdr->e_phnum;
 
 	for (; phdr <= phend; ++phdr) {
-		if (phdr->p_type != ELF_PROG_LOAD) {
+		if (phdr->p_type != ELF_PROG_LOAD)
 			continue;
-		}
 		// allocate space
 		region_alloc(e, (void *)phdr->p_va, phdr->p_memsz);
 
@@ -460,6 +453,8 @@ env_create(uint8_t *binary, enum EnvType type)
 	assert(!ret);
 	load_icode(e, binary);
 	e->env_type = type;
+	if (type == ENV_TYPE_FS)
+		e->env_tf.tf_eflags |= FL_IOPL_MASK;
 }
 
 //
@@ -479,7 +474,7 @@ env_free(struct Env *e)
 		lcr3(PADDR(kern_pgdir));
 
 	// Note the environment's demise.
-	// cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
+	cprintf("[%08x] free env %08x\n", curenv ? curenv->env_id : 0, e->env_id);
 
 	// Flush all mapped pages in the user portion of the address space
 	static_assert(UTOP % PTSIZE == 0);

@@ -55,6 +55,10 @@ sys_env_destroy(envid_t envid)
 
 	if ((r = envid2env(envid, &e, 1)) < 0)
 		return r;
+	if (e == curenv)
+		cprintf("[%08x] exiting gracefully\n", curenv->env_id);
+	else
+		cprintf("[%08x] destroying %08x\n", curenv->env_id, e->env_id);
 	env_destroy(e);
 	return 0;
 }
@@ -134,7 +138,17 @@ sys_env_set_trapframe(envid_t envid, struct Trapframe *tf)
 	// LAB 5: Your code here.
 	// Remember to check whether the user has supplied us with a good
 	// address!
-	panic("sys_env_set_trapframe not implemented");
+	struct Env *e;
+	int ret;
+
+	ret = envid2env(envid, &e, 1);
+	if (ret < 0)
+		return ret;
+	assert(tf);
+	tf->tf_eflags |= FL_IOPL_3;
+	tf->tf_cs |= 3;
+	memcpy((void *)&e->env_tf, tf, sizeof(struct Trapframe));
+	return 0;
 }
 
 // Set the page fault upcall for 'envid' by modifying the corresponding struct
@@ -194,7 +208,10 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 		return -E_INVAL;
 	}
 
-	struct PageInfo *p = page_alloc(0);
+	// page_alloc(ALLOC_ZERO) is crucial for spawn() since it uses
+	// a sys_page_alloc() for allocating blank pages that are reserved
+	// for bss section; otherwise uninited data would not be memsetted to 0
+	struct PageInfo *p = page_alloc(1);
 	if (!p) {
 		return -E_NO_MEM;
 	}
@@ -230,6 +247,9 @@ sys_page_alloc(envid_t envid, void *va, int perm)
 //	-E_INVAL if (perm & PTE_W), but srcva is read-only in srcenvid's
 //		address space.
 //	-E_NO_MEM if there's no memory to allocate any necessary page tables.
+//
+//	TODO: after finishing lab6 refactor this function (and any other
+//	      funcs that are defined here;
 static int
 sys_page_map(envid_t srcenvid, void *srcva,
 	     envid_t dstenvid, void *dstva, int perm)
@@ -359,8 +379,6 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 	struct Env *receiver;
 	int ret;
 	pte_t *src_page;
-	// create mask by flipping bits, so bits not allowed == 1
-	int mask = ~(PTE_U | PTE_P | PTE_W);
 	bool transfer_page = false;
 
 	ret = envid2env(envid, &receiver, 0);
@@ -369,13 +387,11 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 
 	if ((uintptr_t)srcva < UTOP) {
 		if (((uintptr_t)srcva % PGSIZE != 0) ||
-		     (!(perm & (PTE_U | PTE_P)) || (mask & perm))) {
-			cprintf("blabla1\n");
+		     (!(perm & (PTE_U | PTE_P)))) {
 			return -E_INVAL;
 		}
 		if (page_lookup(curenv->env_pgdir, srcva, &src_page) == NULL) {
 			cprintf("blabla2\n");
-
 			return -E_INVAL;
 		}
 		if ((perm & PTE_W) && !(*src_page & PTE_W)) {
@@ -422,7 +438,6 @@ sys_ipc_recv(void *dstva)
 	/* cprintf("IN IPC RECV=======\n"); */
 
 	if ((uintptr_t)dstva < UTOP) {
-		cprintf("DSTVA < UTOP\n");
 		if ((uintptr_t)dstva % PGSIZE != 0)
 			return -E_INVAL;
 		else {
@@ -492,6 +507,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		break;
 	case SYS_ipc_recv:
 		ret = sys_ipc_recv((void *)a1);
+		break;
+	case SYS_env_set_trapframe:
+		ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
 		break;
 	default:
 		return -E_INVAL;

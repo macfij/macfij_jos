@@ -21,11 +21,11 @@ umain(int argc, char **argv)
 	// check fork
 	if ((r = fork()) < 0)
 		panic("fork: %e", r);
-	if (r == 0) {
+	if (r == 0) {  // child
 		strcpy(VA, msg);
-		exit();
+		exit();  // here child ends its poor life
 	}
-	wait(r);
+	wait(r); // parent waits for child
 	cprintf("fork handles PTE_SHARE %s\n", strcmp(VA, msg) == 0 ? "right" : "wrong");
 
 	// check spawn

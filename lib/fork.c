@@ -80,6 +80,14 @@ duppage(envid_t envid, unsigned pn)
 	int perm = PTE_P | PTE_U;
 
 	// LAB 4: Your code here.
+	if (pte & PTE_SYSCALL && pte & PTE_SHARE) {
+		perm |= PTE_W | PTE_SHARE;
+		if ((r = sys_page_alloc(envid, addr, perm)) < 0)
+			panic("duppage: sys_page_alloc: %e", r);
+		if ((r = sys_page_map(0, addr, envid, addr, perm)) < 0)
+			panic("duppage: sys_page_map: %e", r);
+		return 0;
+	}
 	if (pte & PTE_W || pte & PTE_COW)
 		perm |= PTE_COW;
 	// src va onto dst va (thisenv ---> envid)
@@ -125,7 +133,6 @@ fork(void)
 		return 0;
 	}
 
-	cprintf("parent: child's envid: %d\n", ENVX(e));
 	for (addr = UTEXT; addr < UTOP; addr += PGSIZE) {
 		if (!(uvpd[PDX(addr)] & PTE_P))
 			continue;
@@ -134,10 +141,8 @@ fork(void)
 					PTE_P | PTE_U | PTE_W);
 			continue;
 		}
-		if (uvpt[PGNUM(addr)] & PTE_P) {
-	//		cprintf("parent: duplicating page at %x\n", addr);
+		if (uvpt[PGNUM(addr)] & PTE_P)
 			duppage(e, PGNUM(addr));
-		}
 	}
 
 	// copy parent's upcall to child's
