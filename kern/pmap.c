@@ -635,9 +635,8 @@ mmio_map_region(physaddr_t pa, size_t size)
 	static uintptr_t base = MMIOBASE;
 	uintptr_t return_addr;
 	size_t rounded_size = ROUNDUP(size, PGSIZE);
-	if (base + rounded_size >= MMIOLIM) {
+	if (base + rounded_size >= MMIOLIM)
 		panic("mmio_map_region: no space left\n");
-	}
 
 	// Reserve size bytes of virtual memory starting at base and
 	// map physical pages [pa,pa+size) to virtual addresses

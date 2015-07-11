@@ -4,7 +4,6 @@
 #include <inc/error.h>
 #include <inc/string.h>
 #include <inc/assert.h>
-
 #include <kern/env.h>
 #include <kern/pmap.h>
 #include <kern/trap.h>
@@ -12,6 +11,7 @@
 #include <kern/console.h>
 #include <kern/sched.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 // Print a string to the system console.
 // The string is exactly 'len' characters long.
@@ -391,14 +391,10 @@ sys_ipc_try_send(envid_t envid, uint32_t value, void *srcva, unsigned perm)
 		     (!(perm & (PTE_U | PTE_P)))) {
 			return -E_INVAL;
 		}
-		if (page_lookup(curenv->env_pgdir, srcva, &src_page) == NULL) {
-			cprintf("blabla2\n");
+		if (page_lookup(curenv->env_pgdir, srcva, &src_page) == NULL)
 			return -E_INVAL;
-		}
-		if ((perm & PTE_W) && !(*src_page & PTE_W)) {
-			cprintf("blabla3\n");
+		if ((perm & PTE_W) && !(*src_page & PTE_W))
 			return -E_INVAL;
-		}
 		transfer_page = true;
 	}
 	if (!receiver->env_ipc_recving)
@@ -455,12 +451,37 @@ sys_ipc_recv(void *dstva)
 	return 0;
 }
 
+static int
+sys_tx_data(const char *data, uint8_t nbytes)
+{
+	bool finished = false;
+	int ret;
+
+	if ((uintptr_t)data >= UTOP)
+		return -E_INVAL;
+
+	while (!finished) {
+		ret = tx_pkt(data, nbytes);
+		switch (ret) {
+		case 0:
+			finished = true;
+			break;
+		case -E_INVAL:
+			panic("sys_tx_data: nbytes >= 1518 (eth pkt size)");
+			break;
+		case -E_E1000_NOT_TX:
+			continue;
+		}
+	}
+	return 0;
+}
+
 // Return the current time.
 static int
 sys_time_msec(void)
 {
 	// LAB 6: Your code here.
-	panic("sys_time_msec not implemented");
+	return time_msec();
 }
 
 // Dispatches to the correct kernel function, passing the arguments.
@@ -471,9 +492,8 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 	// Return any appropriate return value.
 	// LAB 3: Your code here.
 	int32_t ret = 0;
-	if (syscallno >= NSYSCALLS) {
+	if (syscallno >= NSYSCALLS)
 		return -E_INVAL;
-	}
 
 	switch (syscallno) {
 	case SYS_cputs:
@@ -519,6 +539,12 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		break;
 	case SYS_env_set_trapframe:
 		ret = sys_env_set_trapframe((envid_t)a1, (struct Trapframe *)a2);
+		break;
+	case SYS_time_msec:
+		ret = sys_time_msec();
+		break;
+	case SYS_tx_data:
+		ret = sys_tx_data((const char *)a1, a2);
 		break;
 	default:
 		return -E_INVAL;

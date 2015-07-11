@@ -123,3 +123,9 @@ sys_time_msec(void)
 {
 	return (unsigned int) syscall(SYS_time_msec, 0, 0, 0, 0, 0, 0);
 }
+
+int
+sys_tx_data(const char* data, uint8_t nbytes)
+{
+	return (int) syscall(SYS_tx_data, 0, (uint32_t)data, nbytes, 0, 0, 0);
+}
