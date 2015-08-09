@@ -23,11 +23,10 @@ int32_t
 ipc_recv(envid_t *from_env_store, void *pg, int *perm_store)
 {
 	// LAB 4: Your code here.
-	/* cprintf("IN WRAPPER IPC RECV======\n"); */
 	int ret;
-	int pg_to_send = (pg == NULL) ? UTOP : (int)pg;
+	int pg_to_recv = (pg == NULL) ? UTOP : (int)pg;
 
-	ret = sys_ipc_recv((void *)pg_to_send);
+	ret = sys_ipc_recv((void *)pg_to_recv);
 	if (ret) {
 		cprintf("returned %e\n", ret);
 		*from_env_store = 0;
@@ -57,10 +56,11 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 	// LAB 4: Your code here.
 	int ret;
 	bool finish = false;
-	int pg_to_send = (pg == NULL) ? UTOP : (int)pg;
+	void *pg_to_send = (pg == NULL) ? (void *)UTOP : pg;
+	/* cprintf("pg to send %x, phys addr:\n", pg_to_send); */
 	int perm_to_send = (perm == 0) ? 0 : perm;
 	while (!finish) {
-		ret = sys_ipc_try_send(to_env, val, (void *)pg_to_send,
+		ret = sys_ipc_try_send(to_env, val, pg_to_send,
 					perm_to_send);
 		switch(ret) {
 		case -E_IPC_NOT_RECV:
@@ -72,6 +72,7 @@ ipc_send(envid_t to_env, uint32_t val, void *pg, int perm)
 			panic("ipc_send: %e\n", ret);
 		}
 	}
+	/* cprintf("IPC SEND: sended data successfully\n"); */
 	sys_yield();
 }
 

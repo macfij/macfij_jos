@@ -14,6 +14,7 @@
 #include <kern/cpu.h>
 #include <kern/spinlock.h>
 #include <kern/time.h>
+#include <kern/e1000.h>
 
 void * memcpy(void *, const void *, size_t);
 static struct Taskstate ts;
@@ -98,6 +99,7 @@ trap_init(void)
 	extern void irq_kbd(void);
 	extern void irq_serial(void);
 	extern void irq_spurious(void);
+	extern void irq_nic(void);
 	extern void irq_ide(void);
 	extern void irq_error(void);
 
@@ -127,6 +129,7 @@ trap_init(void)
 	SETGATE(idt[IRQ_OFFSET + IRQ_KBD], 0, GD_KT, irq_kbd, 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_SERIAL], 0, GD_KT, irq_serial, 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_SPURIOUS], 0, GD_KT, irq_spurious, 0);
+	SETGATE(idt[IRQ_OFFSET + IRQ_NIC], 0, GD_KT, irq_nic, 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_IDE], 0, GD_KT, irq_ide, 0);
 	SETGATE(idt[IRQ_OFFSET + IRQ_ERROR], 0, GD_KT, irq_error, 0);
 
@@ -289,6 +292,12 @@ trap_dispatch(struct Trapframe *tf)
 		serial_intr();
 		return;
 	}
+
+	if (tf->tf_trapno == IRQ_OFFSET + IRQ_NIC) {
+		nic_irq_handler();
+		return;
+	}
+
 	// Unexpected trap: The user process or the kernel has a bug.
 	print_trapframe(tf);
 	if (tf->tf_cs == GD_KT)
@@ -374,6 +383,7 @@ page_fault_handler(struct Trapframe *tf)
 
 	// LAB 3: Your code here.
 	if ((tf->tf_cs & 3) == 0) {
+		print_trapframe(tf);
 		panic("page_fault_handler: fatal error - page fault in kernel\n");
 	}
 

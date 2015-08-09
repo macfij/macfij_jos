@@ -73,6 +73,8 @@ irq_setmask_8259A(uint16_t mask)
 {
 	int i;
 	irq_mask_8259A = mask;
+	// enable irq 11 (for nic)
+	irq_mask_8259A &= ~(1 << IRQ_NIC);
 	if (!didinit)
 		return;
 	outb(IO_PIC1+1, (char)mask);

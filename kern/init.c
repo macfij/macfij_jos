@@ -73,8 +73,8 @@ i386_init(void)
 	// Don't touch -- used by grading script!
 	ENV_CREATE(TEST, ENV_TYPE_USER);
 #else
-	// Touch all you want.
-	ENV_CREATE(user_testfile, ENV_TYPE_USER);
+	/* // Touch all you want. */
+	ENV_CREATE(user_testshell, ENV_TYPE_USER);
 #endif // TEST*
 
 	// Should not be necessary - drains keyboard because interrupt has given up.

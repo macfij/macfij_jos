@@ -17,6 +17,8 @@ enum {
 	E_IPC_NOT_RECV	,	// Attempt to send to env that is not recving
 	E_EOF		,	// Unexpected end of file
 	E_E1000_NOT_TX	,	// all the buffers from tx ring are busy
+	E_E1000_NOT_RX	,	// there is no packet that was received and is
+	                        // ready for processing
 
 	// File system error codes -- only seen in user-level
 	E_NO_DISK	,	// No free space left on disk

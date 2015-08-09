@@ -432,7 +432,6 @@ sys_ipc_recv(void *dstva)
 {
 	// LAB 4: Your code here.
 	bool recv_pg = false;
-	/* cprintf("IN IPC RECV=======\n"); */
 
 	if ((uintptr_t)dstva < UTOP) {
 		if ((uintptr_t)dstva % PGSIZE != 0)
@@ -473,6 +472,23 @@ sys_tx_data(const char *data, uint8_t nbytes)
 			continue;
 		}
 	}
+	return 0;
+}
+
+static int
+sys_rx_data(void *addr)
+{
+	curenv->env_net_dstva = addr;
+	// if there was something to receive, then we are good to
+	// go with returning the env_net_value, which holds the number
+	// of bytes copied onto VA addr;
+	if (rx_pkt(curenv) != -E_E1000_NOT_RX)
+		return curenv->env_net_value;
+	// otherwise, mark environment as the one that waits for packet
+	// receival and give up the CPU;
+	curenv->env_status = ENV_NOT_RUNNABLE;
+	curenv->env_net_recving = 1;
+	sys_yield();
 	return 0;
 }
 
@@ -545,6 +561,9 @@ syscall(uint32_t syscallno, uint32_t a1, uint32_t a2, uint32_t a3, uint32_t a4, 
 		break;
 	case SYS_tx_data:
 		ret = sys_tx_data((const char *)a1, a2);
+		break;
+	case SYS_rx_data:
+		ret = sys_rx_data((void *)a1);
 		break;
 	default:
 		return -E_INVAL;

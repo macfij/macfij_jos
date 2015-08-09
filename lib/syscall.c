@@ -129,3 +129,9 @@ sys_tx_data(const char* data, uint8_t nbytes)
 {
 	return (int) syscall(SYS_tx_data, 0, (uint32_t)data, nbytes, 0, 0, 0);
 }
+
+int
+sys_rx_data(void *data)
+{
+	return (int) syscall(SYS_rx_data, 0, (uint32_t)data, 0, 0, 0, 0);
+}

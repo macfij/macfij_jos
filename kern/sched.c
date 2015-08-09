@@ -44,6 +44,18 @@ sched_yield(void)
 	if (idle && idle->env_status == ENV_RUNNING)
 		env_run(idle);
 
+	// give a try for net recving environment; note that it has
+	// the lowest priority amongst all the cases, which is good;
+	// i don't like this way of resolving rx irqs problems, though;
+	for (i = 0; i < NENV; i++) {
+		if (envs[i].env_net_recving) {
+			envs[i].env_net_recving = 0;
+			envs[i].env_net_value = 0;
+			envs[i].env_tf.tf_regs.reg_eax = 0;
+			env_run(&envs[i]);
+		}
+	}
+
 	// sched_halt never returns
 	sched_halt();
 }
@@ -59,12 +71,17 @@ sched_halt(void)
 	// For debugging and testing purposes, if there are no runnable
 	// environments in the system, then drop into the kernel monitor.
 	for (i = 0; i < NENV; i++) {
+		if (envs[i].env_status != ENV_FREE)
+			cprintf("env num %d, type %s, status %s\n",
+				i, env_str_type(envs[i].env_type),
+				env_str_status(envs[i].env_status));
 		if ((envs[i].env_status == ENV_RUNNABLE ||
 		     envs[i].env_status == ENV_RUNNING ||
 		     envs[i].env_status == ENV_DYING))
 			break;
 	}
 	if (i == NENV) {
+
 		cprintf("No runnable environments in the system!\n");
 		while (1)
 			monitor(NULL);

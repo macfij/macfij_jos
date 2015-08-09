@@ -19,6 +19,40 @@ struct Env *envs = NULL;		// All environments
 static struct Env *env_free_list;	// Free environment list
 					// (linked by Env->env_link)
 
+char *env_str_status(int status)
+{
+	switch (status) {
+	case ENV_FREE:
+		return "ENV_FREE";
+	case ENV_DYING:
+		return "ENV_DYING";
+	case ENV_RUNNING:
+		return "ENV_RUNNING";
+	case ENV_RUNNABLE:
+		return "ENV_RUNNABLE";
+	case ENV_NOT_RUNNABLE:
+		return "ENV_NOT_RUNNABLE";
+	default:
+		break;
+	};
+	return "UNKNOWN";
+}
+
+char *env_str_type(enum EnvType type)
+{
+	switch (type) {
+	case ENV_TYPE_FS:
+		return "ENV_TYPE_FS";
+	case ENV_TYPE_NS:
+		return "ENV_TYPE_NS";
+	case ENV_TYPE_USER:
+		return "ENV_TYPE_USER";
+	default:
+		break;
+	};
+	return "UNKNOWN";
+}
+
 #define ENVGENSHIFT	12		// >= LOGNENV
 
 // Global descriptor table.
@@ -92,6 +126,8 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	if (e->env_status == ENV_FREE || e->env_id != envid) {
 		*env_store = 0;
 		cprintf("env id vs envid: %x %x\n", e->env_id, envid);
+		cprintf("env type: %d\n", e->env_type);
+		cprintf("env status: %d\n", e->env_status);
 		return -E_BAD_ENV;
 	}
 
@@ -109,16 +145,17 @@ envid2env(envid_t envid, struct Env **env_store, bool checkperm)
 	return 0;
 }
 
-// debug function used to verifying whether env_free_list is
-// set up properly
-void iterate_through_env_free(void)
+// returns the particular environment that is currently waiting
+// for network packets;
+struct Env *env_net_recver(void)
 {
-	struct Env *c = env_free_list;
-	while(c) {
-		cprintf("c id %d\n", ENVX(c->env_id));
-		c = c->env_link;
+	int i;
+
+	for (i = 0; i < NENV; i++) {
+		if (envs[i].env_net_recving)
+			return &envs[i];
 	}
-	cprintf("NENV %d\n", NENV);
+	return NULL;
 }
 
 // Mark all environments in 'envs' as free, set their env_ids to 0,
@@ -284,6 +321,8 @@ env_alloc(struct Env **newenv_store, envid_t parent_id)
 
 	// Also clear the IPC receiving flag.
 	e->env_ipc_recving = 0;
+	// As well as NET receiving flag.
+	e->env_net_recving = 0;
 
 	// commit the allocation
 	env_free_list = e->env_link;
