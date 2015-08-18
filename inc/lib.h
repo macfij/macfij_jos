@@ -131,6 +131,7 @@ envid_t	spawnl(const char *program, const char *arg0, ...);
 
 // console.c
 void	cputchar(int c);
+void	cputchar_color(int font_color, int bg_color, int c);
 int	getchar(void);
 int	iscons(int fd);
 int	opencons(void);

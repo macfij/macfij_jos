@@ -122,8 +122,8 @@ all:
 	   $(OBJDIR)/lib/%.o $(OBJDIR)/fs/%.o $(OBJDIR)/net/%.o \
 	   $(OBJDIR)/user/%.o
 
-KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs
-USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs
+KERN_CFLAGS := $(CFLAGS) -DJOS_KERNEL -gstabs $(COLOR_FLAGS)
+USER_CFLAGS := $(CFLAGS) -DJOS_USER -gstabs $(COLOR_FLAGS)
 
 # Update .vars.X if variable X has changed since the last make run.
 #
@@ -213,7 +213,6 @@ distclean: realclean
 ifneq ($(V),@)
 GRADEFLAGS += -v
 endif
-
 grade:
 	@echo $(MAKE) clean
 	@$(MAKE) clean || \

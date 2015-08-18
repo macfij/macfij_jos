@@ -24,7 +24,7 @@ struct printbuf {
 
 
 static void
-putch(int ch, struct printbuf *b)
+putch(int font, int bg, int ch, struct printbuf *b)
 {
 	b->buf[b->idx++] = ch;
 	if (b->idx == 256-1) {
@@ -35,13 +35,13 @@ putch(int ch, struct printbuf *b)
 }
 
 int
-vcprintf(const char *fmt, va_list ap)
+vcprintf(int font, int bg, const char *fmt, va_list ap)
 {
 	struct printbuf b;
 
 	b.idx = 0;
 	b.cnt = 0;
-	vprintfmt((void*)putch, &b, fmt, ap);
+	vprintfmt((void*)putch, font, bg, &b, fmt, ap);
 	sys_cputs(b.buf, b.idx);
 
 	return b.cnt;
@@ -54,7 +54,7 @@ cprintf(const char *fmt, ...)
 	int cnt;
 
 	va_start(ap, fmt);
-	cnt = vcprintf(fmt, ap);
+	cnt = vcprintf(WHITE, BLACK, fmt, ap);
 	va_end(ap);
 
 	return cnt;

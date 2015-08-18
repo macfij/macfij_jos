@@ -162,7 +162,7 @@ _panic(const char *file, int line, const char *fmt,...)
 
 	va_start(ap, fmt);
 	cprintf("kernel panic on CPU %d at %s:%d: ", cpunum(), file, line);
-	vcprintf(fmt, ap);
+	vcprintf(BLACK, WHITE, fmt, ap);
 	cprintf("\n");
 	va_end(ap);
 
@@ -180,7 +180,7 @@ _warn(const char *file, int line, const char *fmt,...)
 
 	va_start(ap, fmt);
 	cprintf("kernel warning at %s:%d: ", file, line);
-	vcprintf(fmt, ap);
+	vcprintf(BLACK, WHITE, fmt, ap);
 	cprintf("\n");
 	va_end(ap);
 }

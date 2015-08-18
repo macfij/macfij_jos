@@ -5,33 +5,43 @@
 #include <inc/stdio.h>
 #include <inc/stdarg.h>
 
-
 static void
-putch(int ch, int *cnt)
+putch_color(int font_color, int bg_color, int ch, int *cnt)
 {
-	cputchar(ch);
+	cputchar_color(font_color, bg_color, ch);
 	*cnt++;
 }
 
 int
-vcprintf(const char *fmt, va_list ap)
+vcprintf(int font_color, int bg_color, const char *fmt, va_list ap)
 {
 	int cnt = 0;
 
-	vprintfmt((void*)putch, &cnt, fmt, ap);
+	vprintfmt((void*)putch_color, font_color, bg_color, &cnt, fmt, ap);
 	return cnt;
 }
 
 int
-cprintf(const char *fmt, ...)
+cprintf_color(int font_color, int bg_color, const char *fmt, ...)
 {
 	va_list ap;
 	int cnt;
 
 	va_start(ap, fmt);
-	cnt = vcprintf(fmt, ap);
+	cnt = vcprintf(font_color, bg_color, fmt, ap);
 	va_end(ap);
 
 	return cnt;
 }
 
+int cprintf(const char *fmt, ...)
+{
+	va_list ap;
+	int cnt;
+
+	va_start(ap, fmt);
+	cnt = vcprintf(WHITE, BLACK, fmt, ap);
+	va_end(ap);
+
+	return cnt;
+}

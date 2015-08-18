@@ -42,20 +42,20 @@ static const char * const error_string[MAXERROR] =
  * using specified putch function and associated pointer putdat.
  */
 static void
-printnum(void (*putch)(int, void*), void *putdat,
+printnum(void (*putch)(int, int, int, void*), int font, int bg, void *putdat,
 	 unsigned long long num, unsigned base, int width, int padc)
 {
 	// first recursively print all preceding (more significant) digits
 	if (num >= base) {
-		printnum(putch, putdat, num / base, base, width - 1, padc);
+		printnum(putch, font, bg, putdat, num / base, base, width - 1, padc);
 	} else {
 		// print any needed pad characters before first digit
 		while (--width > 0)
-			putch(padc, putdat);
+			putch(font, bg, padc, putdat);
 	}
 
 	// then print this (the least significant) digit
-	putch("0123456789abcdef"[num % base], putdat);
+	putch(font, bg, "0123456789abcdef"[num % base], putdat);
 }
 
 // Get an unsigned int of various possible sizes from a varargs list,
@@ -86,10 +86,10 @@ getint(va_list *ap, int lflag)
 
 
 // Main function to format and print a string.
-void printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...);
+void printfmt(void (*putch)(int, int, int, void*), int font, int bg, void *putdat, const char *fmt, ...);
 
 void
-vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
+vprintfmt(void (*putch)(int, int, int, void*), int font, int bg, void *putdat, const char *fmt, va_list ap)
 {
 	register const char *p;
 	register int ch, err;
@@ -101,7 +101,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 		while ((ch = *(unsigned char *) fmt++) != '%') {
 			if (ch == '\0')
 				return;
-			putch(ch, putdat);
+			putch(font, bg, ch, putdat);
 		}
 
 		// Process a %-escape sequence
@@ -166,7 +166,7 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 		// character
 		case 'c':
-			putch(va_arg(ap, int), putdat);
+			putch(font, bg, va_arg(ap, int), putdat);
 			break;
 
 		// error message
@@ -175,9 +175,9 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			if (err < 0)
 				err = -err;
 			if (err >= MAXERROR || (p = error_string[err]) == NULL)
-				printfmt(putch, putdat, "error %d", err);
+				printfmt(putch, font, bg, putdat, "error %d", err);
 			else
-				printfmt(putch, putdat, "%s", p);
+				printfmt(putch, font, bg, putdat, "%s", p);
 			break;
 
 		// string
@@ -186,21 +186,21 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 				p = "(null)";
 			if (width > 0 && padc != '-')
 				for (width -= strnlen(p, precision); width > 0; width--)
-					putch(padc, putdat);
+					putch(font, bg, padc, putdat);
 			for (; (ch = *p++) != '\0' && (precision < 0 || --precision >= 0); width--)
 				if (altflag && (ch < ' ' || ch > '~'))
-					putch('?', putdat);
+					putch(font, bg, '?', putdat);
 				else
-					putch(ch, putdat);
+					putch(font, bg, ch, putdat);
 			for (; width > 0; width--)
-				putch(' ', putdat);
+				putch(font, bg, ' ', putdat);
 			break;
 
 		// (signed) decimal
 		case 'd':
 			num = getint(&ap, lflag);
 			if ((long long) num < 0) {
-				putch('-', putdat);
+				putch(font, bg, '-', putdat);
 				num = -(long long) num;
 			}
 			base = 10;
@@ -222,8 +222,8 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 
 		// pointer
 		case 'p':
-			putch('0', putdat);
-			putch('x', putdat);
+			putch(font, bg, '0', putdat);
+			putch(font, bg, 'x', putdat);
 			num = (unsigned long long)
 				(uintptr_t) va_arg(ap, void *);
 			base = 16;
@@ -234,17 +234,17 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 			num = getuint(&ap, lflag);
 			base = 16;
 		number:
-			printnum(putch, putdat, num, base, width, padc);
+			printnum(putch, font, bg, putdat, num, base, width, padc);
 			break;
 
 		// escaped '%' character
 		case '%':
-			putch(ch, putdat);
+			putch(font, bg, ch, putdat);
 			break;
 
 		// unrecognized escape sequence - just print it literally
 		default:
-			putch('%', putdat);
+			putch(font, bg, '%', putdat);
 			for (fmt--; fmt[-1] != '%'; fmt--)
 				/* do nothing */;
 			break;
@@ -253,12 +253,12 @@ vprintfmt(void (*putch)(int, void*), void *putdat, const char *fmt, va_list ap)
 }
 
 void
-printfmt(void (*putch)(int, void*), void *putdat, const char *fmt, ...)
+printfmt(void (*putch)(int, int, int, void*), int font, int bg, void *putdat, const char *fmt, ...)
 {
 	va_list ap;
 
 	va_start(ap, fmt);
-	vprintfmt(putch, putdat, fmt, ap);
+	vprintfmt(putch, font, bg, putdat, fmt, ap);
 	va_end(ap);
 }
 
@@ -269,7 +269,7 @@ struct sprintbuf {
 };
 
 static void
-sprintputch(int ch, struct sprintbuf *b)
+sprintputch(int font, int bg, int ch, struct sprintbuf *b)
 {
 	b->cnt++;
 	if (b->buf < b->ebuf)
@@ -285,7 +285,7 @@ vsnprintf(char *buf, int n, const char *fmt, va_list ap)
 		return -E_INVAL;
 
 	// print the string to the buffer
-	vprintfmt((void*)sprintputch, &b, fmt, ap);
+	vprintfmt((void*)sprintputch, WHITE, BLACK, &b, fmt, ap);
 
 	// null terminate the buffer
 	*b.buf = '\0';

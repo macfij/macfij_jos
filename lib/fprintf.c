@@ -27,7 +27,7 @@ writebuf(struct printbuf *b)
 }
 
 static void
-putch(int ch, void *thunk)
+putch(int font, int col, int ch, void *thunk)
 {
 	struct printbuf *b = (struct printbuf *) thunk;
 	b->buf[b->idx++] = ch;
@@ -46,7 +46,7 @@ vfprintf(int fd, const char *fmt, va_list ap)
 	b.idx = 0;
 	b.result = 0;
 	b.error = 1;
-	vprintfmt(putch, &b, fmt, ap);
+	vprintfmt(putch, BLACK, WHITE, &b, fmt, ap);
 	if (b.idx > 0)
 		writebuf(&b);
 

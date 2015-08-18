@@ -12,6 +12,20 @@
 static void cons_intr(int (*proc)(void));
 static void cons_putc(int c);
 
+struct {
+	const char *esc_seq_font;
+	const char *esc_seq_bg;
+} color_entries[] = {
+	[BLACK] =  { "\x1B[30m", "\x1B[40m" },
+	[BLUE] =   { "\x1B[34m", "\x1B[44m" },
+	[GREEN] =  { "\x1B[32m", "\x1B[42m" },
+	[CYAN] =   { "\x1B[36m", "\x1B[46m" },
+	[RED] =    { "\x1B[31m", "\x1B[41m" },
+	[PURPLE] = { "\x1B[35m", "\x1B[45m" },
+	[ORANGE] = { "\x1B[33m", "\x1B[43m" },
+	[WHITE] =  { "\x1B[37m", "\x1B[47m" },
+};
+
 // Stupid I/O delay routine necessitated by historical PC design flaws
 static void
 delay(void)
@@ -166,7 +180,16 @@ cga_init(void)
 static void
 cga_putc(int c)
 {
-	// if no attribute given, then use black on white
+	// each screen character is represented by 2 bytes; the layout of
+	// bits is presented below:
+	// -----------------------------------------------------------------
+	// |          attribute            |          character            |
+	// |-------------------------------+-------------------------------|
+	// | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 | 7 | 6 | 5 | 4 | 3 | 2 | 1 | 0 |
+	// |---+-----------+---------------+-------------------------------|
+	// | b | backgrnd  | foreground    |         code point            |
+	// -----------------------------------------------------------------
+	// where "b" stands for blink bit;
 	if (!(c & ~0xFF))
 		c |= 0x0700;
 
@@ -431,13 +454,45 @@ cons_getc(void)
 	return 0;
 }
 
+static void output_esc_seq(const char *esc_seq)
+{
+	uint8_t len, i;
+	len = strlen(esc_seq);
+	for (i = 0; i < len; i++)
+		serial_putc(esc_seq[i]);
+}
+
 // output a character to the console
 static void
-cons_putc(int c)
+cons_putc_color(int font_color, int bg_color, int c)
 {
+	const char *esc_seq_font = color_entries[font_color].esc_seq_font;
+	const char *esc_seq_bg = color_entries[bg_color].esc_seq_bg;
+	uint8_t attr = 0;
+
+	if (font_color < 0 || font_color >= COLOR_MAX ||
+	    bg_color < 0 || bg_color >= COLOR_MAX)
+		panic("invalid color specifier\n");
+
+// define NO_COLOR flag in order to keep grading scripts happy;
+// python's regexes have problems with ansi escape sequences;
+// it is easier to pass flag and disable colors for grading rather than
+// discarding sequences in every grading regex;
+#ifndef NO_COLOR
+	output_esc_seq(esc_seq_font);
+	output_esc_seq(esc_seq_bg);
+#endif
 	serial_putc(c);
+
+	attr = ((bg_color & 0x7) << 4) | (font_color & 0xf);
+	c |= (attr << 8);
 	lpt_putc(c);
 	cga_putc(c);
+}
+
+static void cons_putc(int c)
+{
+	cons_putc_color(BLACK, WHITE, c);
 }
 
 // initialize the console devices
@@ -454,11 +509,16 @@ cons_init(void)
 
 
 // `High'-level console I/O.  Used by readline and cprintf.
+void
+cputchar_color(int font_color, int bg_color, int c)
+{
+	cons_putc_color(font_color, bg_color, c);
+}
 
 void
 cputchar(int c)
 {
-	cons_putc(c);
+	cons_putc_color(BLACK, WHITE, c);
 }
 
 int
